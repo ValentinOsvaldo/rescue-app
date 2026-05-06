@@ -1,5 +1,11 @@
 <template>
-  <div>
-    <h1>Dashboard</h1>
-  </div>
+  <UDashboardPanel>
+    <template #header>
+      <UDashboardNavbar title="Dashboard">
+        <template #leading>
+          <UDashboardSidebarCollapse />
+        </template>
+      </UDashboardNavbar>
+    </template>
+  </UDashboardPanel>
 </template>

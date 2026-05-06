@@ -1,6 +1,6 @@
 <template>
   <UDashboardGroup>
-    <UDashboardSidebar collapsible resizable />
+    <SharedSidebar />
 
     <slot />
   </UDashboardGroup>

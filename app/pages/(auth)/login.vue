@@ -22,16 +22,30 @@ const fields: AuthFormField[] = [
 ];
 
 const schema = z.object({
-  email: z.email('Email no válido'),
-  password: z
-    .string('La contraseña es requerida')
-    .min(8, 'La contraseña debe tener al menos 8 caracteres'),
+  username: z.string('El nombre de usuario es requerido'),
+  password: z.string('La contraseña es requerida'),
 });
 
 type Schema = z.output<typeof schema>;
 
+const { mutate, asyncStatus } = useMutation({
+  mutation: ({ username, password }: { username: string; password: string }) =>
+    $fetch('/api/auth/login', {
+      method: 'POST',
+      body: {
+        username,
+        password,
+      },
+    }),
+  onSuccess: () => {
+    navigateTo('/admin/dashboard');
+  },
+});
+
 function onSubmit(payload: FormSubmitEvent<Schema>) {
-  console.log('Submitted', payload);
+  mutate({
+    ...payload.data,
+  });
 }
 </script>
 
@@ -47,10 +61,12 @@ function onSubmit(payload: FormSubmitEvent<Schema>) {
           label: 'Iniciar sesión',
           size: 'xl',
           class: 'font-bold',
+          type: 'submit',
         }"
         :ui="{
           title: 'font-thin uppercase text-xs tracking-[0.25em] text-muted',
         }"
+        :loading="asyncStatus === 'loading'"
         @submit="onSubmit"
       />
     </UPageCard>

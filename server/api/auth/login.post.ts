@@ -1,12 +1,19 @@
 import { joinURL } from 'ufo';
 
+interface Response {
+  token: string;
+  id: number;
+  role: string;
+  name: string;
+}
+
 export default defineEventHandler(async (event) => {
   const apiUrl = useRuntimeConfig().apiUrl;
   const body = await readBody(event);
 
-  const target = joinURL(apiUrl, '/auth/login');
+  const target = joinURL(apiUrl, '/api/auth/login/');
 
-  const response = await $fetch<{ token: string }>(target, {
+  const response = await $fetch<Response>(target, {
     method: 'POST',
     body: {
       username: body.username,
@@ -16,7 +23,9 @@ export default defineEventHandler(async (event) => {
 
   await setUserSession(event, {
     user: {
-      username: body.username,
+      name: body.username,
+      id: response.id,
+      role: response.role,
     },
     token: response.token,
   });
