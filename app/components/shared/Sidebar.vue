@@ -1,11 +1,22 @@
 <script setup lang="ts">
 import type { NavigationMenuItem } from '@nuxt/ui';
-const items = computed<NavigationMenuItem[]>(() => [
-  {
-    label: 'Dashboard',
-    icon: 'i-lucide-home',
-    to: '/admin/dashboard',
-  },
+
+const items = computed<NavigationMenuItem[][]>(() => [
+  [
+    { label: 'Administración', type: 'label' },
+    {
+      label: 'Dashboard',
+      icon: 'i-lucide-layout-dashboard',
+      to: '/admin/dashboard',
+    },
+  ],
+  [
+    { label: 'Catálogos', type: 'label' },
+    { label: 'Servicios', to: '/admin/services', icon: 'i-lucide-server' },
+  ],
+  [
+    { label: 'Configuración', type: 'label' },
+  ],
 ]);
 
 const { user } = useUserSession();
@@ -20,8 +31,22 @@ const { mutate: logout } = useMutation({
 
 <template>
   <UDashboardSidebar collapsible resizable>
-    <template #header>
-      <h1>Hello</h1>
+    <template #header="{ collapsed }">
+      <ClientOnly>
+        <template #fallback>
+          <USkeleton class="size-8 rounded-full" />
+        </template>
+
+        <SharedAetoLogo class="size-8" />
+      </ClientOnly>
+
+      <div
+        v-show="!collapsed"
+        class="font-display font-extrabold tracking-tight leading-none text-lg"
+      >
+        <span class="text-black dark:text-white">AETO</span>
+        <span class="text-primary">RESCUE 2</span>
+      </div>
     </template>
     <template #default="{ collapsed }">
       <UNavigationMenu
@@ -32,7 +57,7 @@ const { mutate: logout } = useMutation({
     </template>
 
     <template #footer="{ collapsed }">
-      <div class="flex flex-col gap-2 w-full">
+      <div class="flex flex-col gap-4 w-full mb-4">
         <UUser
           :name="collapsed ? undefined : user?.name"
           :description="collapsed ? undefined : user?.role"
@@ -41,7 +66,7 @@ const { mutate: logout } = useMutation({
             src: 'https://github.com/benjamincanac.png',
           }"
           :ui="{
-            name: 'capitalize'
+            name: 'capitalize',
           }"
         />
 
