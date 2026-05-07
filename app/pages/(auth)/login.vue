@@ -4,6 +4,7 @@ import type { FormSubmitEvent, AuthFormField } from '@nuxt/ui';
 
 definePageMeta({
   layout: false,
+  middleware: 'no-auth',
 });
 
 const fields: AuthFormField[] = [
