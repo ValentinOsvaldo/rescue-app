@@ -12,7 +12,7 @@ const items = computed<NavigationMenuItem[][]>(() => [
   ],
   [
     { label: 'Catálogos', type: 'label' },
-    { label: 'Servicios', to: '/admin/services', icon: 'i-lucide-server' },
+    // { label: 'Servicios', to: '/admin/services', icon: 'i-lucide-server' },
   ],
   [
     { label: 'Configuración', type: 'label' },
