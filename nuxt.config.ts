@@ -10,11 +10,11 @@ export default defineNuxtConfig({
   },
 
   modules: [
-    '@nuxt/hints',
+    // '@nuxt/hints',
+    // '@nuxt/a11y',
     '@nuxt/image',
     '@nuxt/ui',
     '@nuxt/eslint',
-    '@nuxt/a11y',
     '@pinia/nuxt',
     'nuxt-auth-utils',
     '@pinia/colada-nuxt',
