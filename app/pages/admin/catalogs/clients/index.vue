@@ -1,11 +1,20 @@
 <script setup lang="ts">
-import type { TableColumn } from '@nuxt/ui';
+import type { TableColumn, TableRow } from '@nuxt/ui';
 import type { Client } from '~/interfaces/catalogs/client';
 import type { PaginatedResponse } from '~/interfaces/shared/pagination.interface';
 
 useHead({
   title: 'Clientes',
 });
+
+const slideoverRef = ref<{ openEdit: (id: number) => void | Promise<void> } | null>(null);
+
+function onRowSelect(_e: Event, row: TableRow<Client>) {
+  const id = row.original.id;
+  if (id != null) {
+    void slideoverRef.value?.openEdit(id);
+  }
+}
 
 const { data, isPending } = useQuery({
   key: () => ['clients'],
@@ -48,7 +57,7 @@ const columns: TableColumn<Client>[] = [
             </p>
           </div>
 
-          <UButton icon="i-lucide-plus" label="Nuevo cliente" size="lg" />
+          <CatalogClientCreateSlideover ref="slideoverRef" />
         </div>
 
         <USeparator />
@@ -66,7 +75,13 @@ const columns: TableColumn<Client>[] = [
           <UButton label="Inactivos" variant="subtle" color="neutral" />
         </div>
 
-        <UTable :columns="columns" :data="data?.results" :loading="isPending" />
+        <UTable
+          :columns="columns"
+          :data="data?.results"
+          :loading="isPending"
+          :get-row-id="(row: Client) => String(row.id)"
+          @select="onRowSelect"
+        />
       </UContainer>
     </template>
   </UDashboardPanel>

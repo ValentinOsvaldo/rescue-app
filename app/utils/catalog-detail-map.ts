@@ -1,0 +1,129 @@
+import type { CompanyCreateBody } from '~/interfaces/catalogs/company';
+import type { ClientCreateBody } from '~/interfaces/catalogs/client';
+import type { ServiceCreateBody } from '~/interfaces/catalogs/service';
+
+export function mapCompanyDetail(raw: Record<string, unknown>): CompanyCreateBody {
+  return {
+    name: String(raw.name ?? ''),
+    business_name: String(raw.business_name ?? ''),
+    rfc: String(raw.rfc ?? ''),
+    phone: String(raw.phone ?? ''),
+    email: String(raw.email ?? ''),
+    address: String(raw.address ?? ''),
+    client_type: String(raw.client_type ?? 'CREDIT'),
+    billing_type: String(raw.billing_type ?? 'DIRECT_INVOICE'),
+    commission_type: String(raw.commission_type ?? 'PERCENTAGE'),
+    commission_value: String(raw.commission_value ?? '0.00'),
+    commission_fixed: String(raw.commission_fixed ?? '0.00'),
+    price_multiplier: String(raw.price_multiplier ?? '1.00'),
+  };
+}
+
+export function mapClientDetail(raw: Record<string, unknown>): Omit<
+  ClientCreateBody,
+  'company' | 'seller'
+> & {
+  company?: number;
+  seller?: number;
+} {
+  const company = raw.company ?? raw.company_id;
+  const seller = raw.seller ?? raw.seller_id;
+  return {
+    name: String(raw.name ?? ''),
+    business_name: String(raw.business_name ?? ''),
+    rfc: String(raw.rfc ?? ''),
+    phone: String(raw.phone ?? ''),
+    email: String(raw.email ?? ''),
+    address: String(raw.address ?? ''),
+    client_type: String(raw.client_type ?? 'CASH'),
+    billing_type: String(raw.billing_type ?? 'MANUAL'),
+    commission_type: String(raw.commission_type ?? 'FIXED'),
+    commission_value: String(raw.commission_value ?? '0.00'),
+    commission_fixed: String(raw.commission_fixed ?? '0.00'),
+    price_multiplier: String(raw.price_multiplier ?? '1.00'),
+    company: company != null && company !== '' ? Number(company) : undefined,
+    seller: seller != null && seller !== '' ? Number(seller) : undefined,
+    notes: String(raw.notes ?? ''),
+  };
+}
+
+export function mapClientDetailToCreateBody(
+  raw: Record<string, unknown>,
+): ClientCreateBody {
+  const base = mapClientDetail(raw);
+  return {
+    ...base,
+    company: base.company ?? 0,
+    seller: base.seller ?? 0,
+  };
+}
+
+export function mapServiceDetail(raw: Record<string, unknown>): ServiceCreateBody & {
+  category?: number;
+} {
+  const cat = raw.category ?? raw.category_id;
+  return {
+    name: String(raw.name ?? ''),
+    description: String(raw.description ?? ''),
+    category: cat != null && cat !== '' ? Number(cat) : undefined,
+    unit: String(raw.unit ?? 'service'),
+    warranty: Boolean(raw.warranty),
+  };
+}
+
+export function mapCategoryDetail(raw: Record<string, unknown>): { name: string } {
+  return {
+    name: String(raw.name ?? ''),
+  };
+}
+
+export type ContractLineFormRow = {
+  service?: number;
+  price: string;
+  price_multiplier: string;
+  percentaje: string;
+  notes: string;
+};
+
+export type ContractFormFromDetail = {
+  client?: number;
+  notes: string;
+  items: ContractLineFormRow[];
+};
+
+function mapContractLine(it: Record<string, unknown>): ContractLineFormRow {
+  const svc = it.service ?? it.service_id;
+  return {
+    service: svc != null && svc !== '' ? Number(svc) : undefined,
+    price: String(it.price ?? ''),
+    price_multiplier: String(it.price_multiplier ?? ''),
+    percentaje: String(it.percentaje ?? it.percentage ?? ''),
+    notes: String(it.notes ?? ''),
+  };
+}
+
+export function mapContractDetailToForm(
+  raw: Record<string, unknown>,
+): ContractFormFromDetail {
+  const client = raw.client ?? raw.client_id;
+  const itemsRaw = raw.items;
+  const lines = Array.isArray(itemsRaw)
+    ? (itemsRaw as Record<string, unknown>[]).map(mapContractLine)
+    : [];
+
+  return {
+    client: client != null && client !== '' ? Number(client) : undefined,
+    notes: String(raw.notes ?? ''),
+    items:
+      lines.length > 0
+        ? lines
+        : [
+            {
+              price: '',
+              price_multiplier: '',
+              percentaje: '',
+              notes: '',
+            },
+          ],
+  };
+}

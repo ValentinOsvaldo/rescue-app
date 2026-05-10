@@ -4,3 +4,8 @@ export interface Category {
   name: string;
   is_active: boolean;
 }
+
+export interface CategoryCreateBody {
+  catalogue_type: 'service_category';
+  name: string;
+}
