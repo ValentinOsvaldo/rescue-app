@@ -8,8 +8,6 @@ export default defineEventHandler(async (event) => {
 
     const target = joinURL(apiUrl, event.path);
 
-    console.log(target);
-
     return proxyRequest(event, target, {
       headers: {
         Authorization: `Token ${token}`,
