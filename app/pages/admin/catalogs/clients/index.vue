@@ -74,8 +74,9 @@ const columns: TableColumn<Client>[] = [
           />
 
           <UButton label="Todos" variant="subtle" color="primary" />
-          <UButton label="Activos" variant="subtle" color="neutral" />
-          <UButton label="Inactivos" variant="subtle" color="neutral" />
+          <UButton label="Crédito" variant="subtle" color="neutral" />
+          <UButton label="Contado" variant="subtle" color="neutral" />
+          <UButton label="Publico general" variant="subtle" color="neutral" />
         </div>
 
         <UTable

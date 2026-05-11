@@ -171,8 +171,8 @@ const columns: TableColumn<ClientContractRow>[] = [
           />
 
           <UButton label="Todos" variant="subtle" color="primary" />
-          <UButton label="Activos" variant="subtle" color="neutral" />
-          <UButton label="Inactivos" variant="subtle" color="neutral" />
+          <UButton label="Con contrato" variant="subtle" color="neutral" />
+          <UButton label="Sin contracto" variant="subtle" color="neutral" />
         </div>
 
         <UTable
