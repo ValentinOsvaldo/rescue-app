@@ -1,5 +1,10 @@
 import * as z from 'zod';
-import type { ContractCreateBody, ContractItemCreateBody } from '~/interfaces/catalogs/contract';
+import type {
+  ContractCreateBody,
+  ContractItemCreateBody,
+  ContractItemUpdateBody,
+  ContractUpdateBody,
+} from '~/interfaces/catalogs/contract';
 
 const requiredStr = (label: string) =>
   z.string().transform((s) => s.trim()).pipe(z.string().min(1, `${label} es obligatorio`));
@@ -64,7 +69,7 @@ export const supplierCreateSchema = z.object({
   longitude: requiredStr('La longitud'),
 });
 
-export const contractLineFormSchema = z.object({
+export const contractItemFormSchema = z.object({
   service: z.number().int().positive({ error: 'Selecciona un servicio' }),
   price: z
     .string()
@@ -75,32 +80,43 @@ export const contractLineFormSchema = z.object({
   notes: z.string(),
 });
 
-export const contractCreateFormSchema = z.object({
-  client: z.number().int().positive({ error: 'Selecciona un cliente' }),
+export const contractHeaderUpdateSchema = z.object({
   notes: z.string(),
-  items: z
-    .array(contractLineFormSchema)
-    .min(1, 'Agrega al menos una partida'),
 });
 
-export function contractFormToApiBody(
-  input: z.output<typeof contractCreateFormSchema>,
-): ContractCreateBody {
+export function contractItemFormToCreateBody(
+  input: z.output<typeof contractItemFormSchema>,
+): ContractItemCreateBody {
+  const body: ContractItemCreateBody = {
+    service: input.service,
+    price: input.price,
+  };
+  const pm = input.price_multiplier.trim();
+  const pct = input.percentaje.trim();
+  const notes = input.notes.trim();
+  if (pm) body.price_multiplier = pm;
+  if (pct) body.percentaje = pct;
+  if (notes) body.notes = notes;
+  return body;
+}
+
+export function contractItemFormToUpdateBody(
+  input: z.output<typeof contractItemFormSchema>,
+): ContractItemUpdateBody {
+  return contractItemFormToCreateBody(input);
+}
+
+export function contractHeaderFormToUpdateBody(
+  input: z.output<typeof contractHeaderUpdateSchema>,
+): ContractUpdateBody {
   return {
-    client: input.client,
     notes: input.notes,
-    items: input.items.map((row) => {
-      const item: ContractItemCreateBody = {
-        service: row.service,
-        price: row.price,
-      };
-      const pm = row.price_multiplier.trim();
-      const pct = row.percentaje.trim();
-      const n = row.notes.trim();
-      if (pm) item.price_multiplier = pm;
-      if (pct) item.percentaje = pct;
-      if (n) item.notes = n;
-      return item;
-    }),
+  };
+}
+
+export function contractCreateBody(clientId: number): ContractCreateBody {
+  return {
+    client: clientId,
+    notes: '',
   };
 }

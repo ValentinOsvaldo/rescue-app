@@ -1,6 +1,19 @@
+import type { Client } from '~/interfaces/catalogs/client';
+
 export interface Contract {
   id: number;
   client_id: number;
+  notes: string;
+  is_active: boolean;
+}
+
+export interface ContractItem {
+  id: number;
+  service_id: number;
+  service_name: string;
+  price: string;
+  price_multiplier: string;
+  percentaje: string;
   notes: string;
   is_active: boolean;
 }
@@ -13,8 +26,19 @@ export interface ContractItemCreateBody {
   notes?: string;
 }
 
+export type ContractItemUpdateBody = ContractItemCreateBody;
+
 export interface ContractCreateBody {
   client: number;
   notes: string;
-  items: ContractItemCreateBody[];
+  items?: ContractItemCreateBody[];
+}
+
+export interface ContractUpdateBody {
+  notes: string;
+}
+
+export interface ClientContractRow {
+  client: Client;
+  contract?: Contract;
 }

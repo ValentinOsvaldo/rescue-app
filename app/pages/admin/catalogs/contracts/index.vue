@@ -1,35 +1,142 @@
 <script setup lang="ts">
-import type { TableColumn, TableRow } from '@nuxt/ui';
-import type { Contract } from '~/interfaces/catalogs/contract';
+import { useMutation, useQueryCache } from '@pinia/colada';
+import type { TableColumn } from '@nuxt/ui';
+import type { ClientContractRow, Contract } from '~/interfaces/catalogs/contract';
+import type { Client } from '~/interfaces/catalogs/client';
 import type { PaginatedResponse } from '~/interfaces/shared/pagination.interface';
+import { contractCreateBody } from '~/schemas/catalog-create';
+import { getFetchErrorMessage } from '~/utils/fetch-error-message';
 
 useHead({
   title: 'Contratos',
 });
 
-const slideoverRef = ref<{ openEdit: (id: number) => void | Promise<void> } | null>(null);
+const toast = useToast();
+const queryCache = useQueryCache();
+const creatingClientId = ref<number | null>(null);
+const UButton = resolveComponent('UButton');
 
-function onRowSelect(_e: Event, row: TableRow<Contract>) {
-  const id = row.original.id;
-  if (id != null) {
-    void slideoverRef.value?.openEdit(id);
-  }
-}
+const { data: clientsData, isPending: clientsPending } = useQuery({
+  key: () => ['clients'],
+  query: () =>
+    $fetch<PaginatedResponse<Client>>(`/api/catalogue/client/list/`),
+});
 
-const { data, isPending } = useQuery({
+const { data: contractsData, isPending: contractsPending } = useQuery({
   key: () => ['contracts'],
   query: () =>
     $fetch<PaginatedResponse<Contract>>(`/api/catalogue/contract/list/`),
 });
 
-const columns: TableColumn<Contract>[] = [
+const rows = computed<ClientContractRow[]>(() => {
+  const contractsByClientId = new Map(
+    (contractsData.value?.results ?? []).map((contract) => [
+      contract.client_id,
+      contract,
+    ]),
+  );
+
+  return (clientsData.value?.results ?? []).map((client) => ({
+    client,
+    contract: contractsByClientId.get(client.id),
+  }));
+});
+
+const isPending = computed(
+  () => clientsPending.value || contractsPending.value,
+);
+
+function resolveContractId(payload: unknown): number | null {
+  if (payload == null || typeof payload !== 'object') return null;
+  const record = payload as Record<string, unknown>;
+  const id = record.id;
+  return typeof id === 'number' ? id : null;
+}
+
+const { mutate: createContract } = useMutation({
+  mutation: (clientId: number) =>
+    $fetch<Record<string, unknown>>('/api/catalogue/contract/create/', {
+      method: 'POST',
+      body: contractCreateBody(clientId),
+    }),
+  async onSuccess(payload) {
+    toast.add({
+      title: 'Contrato creado',
+      color: 'success',
+    });
+    await queryCache.invalidateQueries({ key: ['contracts'] });
+    await queryCache.invalidateQueries({ key: ['clients'] });
+    const contractId = resolveContractId(payload);
+    if (contractId != null) {
+      await navigateTo(`/admin/catalogs/contracts/${contractId}`);
+    }
+  },
+  onError: (e) => {
+    console.error(e);
+    toast.add({
+      title: 'No se pudo crear el contrato',
+      description: getFetchErrorMessage(e),
+      color: 'error',
+    });
+  },
+  onSettled: () => {
+    creatingClientId.value = null;
+  },
+});
+
+function manageContract(contractId: number) {
+  void navigateTo(`/admin/catalogs/contracts/${contractId}`);
+}
+
+function createContractForClient(clientId: number) {
+  creatingClientId.value = clientId;
+  createContract(clientId);
+}
+
+const columns: TableColumn<ClientContractRow>[] = [
   {
-    accessorKey: 'client_id',
-    header: 'Cliente',
+    accessorKey: 'client.name',
+    header: 'Nombre',
+    cell: ({ row }) => row.original.client.name,
   },
   {
-    accessorKey: 'notes',
-    header: 'Notas',
+    accessorKey: 'client.business_name',
+    header: 'Razón social',
+    cell: ({ row }) => row.original.client.business_name,
+  },
+  {
+    accessorKey: 'client.rfc',
+    header: 'RFC',
+    cell: ({ row }) => row.original.client.rfc,
+  },
+  {
+    accessorKey: 'client.client_type',
+    header: 'Tipo',
+    cell: ({ row }) => row.original.client.client_type,
+  },
+  {
+    id: 'actions',
+    header: 'Acciones',
+    cell: ({ row }) => {
+      const { client, contract } = row.original;
+      if (contract != null) {
+        return h(UButton, {
+          label: 'Gestionar contrato',
+          size: 'sm',
+          variant: 'subtle',
+          onClick: () => manageContract(contract.id),
+        });
+      }
+
+      return h(UButton, {
+        label: 'Crear contrato',
+        size: 'sm',
+        variant: 'subtle',
+        loading: creatingClientId.value === client.id,
+        disabled: creatingClientId.value === client.id,
+        onClick: () => createContractForClient(client.id),
+      });
+    },
   },
 ];
 </script>
@@ -45,11 +152,9 @@ const columns: TableColumn<Contract>[] = [
           <div>
             <h1 class="text-3xl font-bold tracking-tight">Contratos</h1>
             <p class="mt-1 text-sm text-muted">
-              Gestiona los contratos con tus clientes
+              Asigna y gestiona contratos por cliente
             </p>
           </div>
-
-          <CatalogContractCreateSlideover ref="slideoverRef" />
         </div>
 
         <USeparator />
@@ -57,7 +162,7 @@ const columns: TableColumn<Contract>[] = [
         <div class="flex flex-row gap-2 my-4">
           <UInput
             leading-icon="i-lucide-search"
-            placeholder="Buscar contrato"
+            placeholder="Buscar cliente"
             class="flex-1"
             variant="subtle"
             :ui="{
@@ -72,10 +177,9 @@ const columns: TableColumn<Contract>[] = [
 
         <UTable
           :columns="columns"
-          :data="data?.results"
+          :data="rows"
           :loading="isPending"
-          :get-row-id="(row: Contract) => String(row.id)"
-          @select="onRowSelect"
+          :get-row-id="(row: ClientContractRow) => String(row.client.id)"
         />
       </UContainer>
     </template>

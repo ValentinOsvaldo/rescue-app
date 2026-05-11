@@ -29,9 +29,11 @@ export function mapClientDetail(raw: Record<string, unknown>): Omit<
 > & {
   company?: number;
   seller?: number;
+  credit_balance?: string;
 } {
   const company = raw.company ?? raw.company_id;
   const seller = raw.seller ?? raw.seller_id;
+  const credit = raw.credit_balance ?? raw.credit ?? raw.credit_limit;
   return {
     name: String(raw.name ?? ''),
     business_name: String(raw.business_name ?? ''),
@@ -48,6 +50,8 @@ export function mapClientDetail(raw: Record<string, unknown>): Omit<
     company: company != null && company !== '' ? Number(company) : undefined,
     seller: seller != null && seller !== '' ? Number(seller) : undefined,
     notes: String(raw.notes ?? ''),
+    credit_balance:
+      credit != null && credit !== '' ? String(credit) : undefined,
   };
 }
 
@@ -128,6 +132,12 @@ export type ContractFormFromDetail = {
   items: ContractLineFormRow[];
 };
 
+export type ContractHeaderFromDetail = {
+  client?: number;
+  clientName: string;
+  notes: string;
+};
+
 function mapContractLine(it: Record<string, unknown>): ContractLineFormRow {
   const svc = it.service ?? it.service_id;
   return {
@@ -136,6 +146,24 @@ function mapContractLine(it: Record<string, unknown>): ContractLineFormRow {
     price_multiplier: String(it.price_multiplier ?? ''),
     percentaje: String(it.percentaje ?? it.percentage ?? ''),
     notes: String(it.notes ?? ''),
+  };
+}
+
+export function mapContractHeaderDetail(
+  raw: Record<string, unknown>,
+): ContractHeaderFromDetail {
+  const client = raw.client ?? raw.client_id;
+  const clientName =
+    typeof raw.client_name === 'string'
+      ? raw.client_name
+      : typeof raw.client === 'object' && raw.client != null && 'name' in raw.client
+        ? String((raw.client as Record<string, unknown>).name ?? '')
+        : '';
+
+  return {
+    client: client != null && client !== '' ? Number(client) : undefined,
+    clientName,
+    notes: String(raw.notes ?? ''),
   };
 }
 
