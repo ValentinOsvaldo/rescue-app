@@ -50,7 +50,7 @@ const { mutate: logout } = useMutation({
         class="font-display font-extrabold tracking-tight leading-none text-lg"
       >
         <span class="text-black dark:text-white">AETO</span>
-        <span class="text-primary">RESCUE 2</span>
+        <span class="text-primary">RESCUE</span>
       </div>
     </template>
     <template #default="{ collapsed }">
