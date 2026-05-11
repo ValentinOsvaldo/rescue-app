@@ -1,0 +1,96 @@
+<script setup lang="ts">
+import type { TableColumn, TableRow } from '@nuxt/ui';
+import type { Supplier } from '~/interfaces/catalogs/supplier';
+import type { PaginatedResponse } from '~/interfaces/shared/pagination.interface';
+import { SUPPLIER_SERVICE_TYPE_OPTIONS } from '~/constants/catalog-select-options';
+
+useHead({
+  title: 'Proveedores',
+});
+
+const slideoverRef = ref<{ openEdit: (id: number) => void | Promise<void> } | null>(null);
+
+function onRowSelect(_e: Event, row: TableRow<Supplier>) {
+  const id = row.original.id;
+  if (id != null) {
+    void slideoverRef.value?.openEdit(id);
+  }
+}
+
+const { data, isPending } = useQuery({
+  key: () => ['suppliers'],
+  query: () =>
+    $fetch<PaginatedResponse<Supplier>>(`/api/supplier/list/`),
+});
+
+const serviceTypeLabel: Record<string, string> = Object.fromEntries(
+  SUPPLIER_SERVICE_TYPE_OPTIONS.map((o) => [o.value, o.label]),
+);
+
+const columns: TableColumn<Supplier>[] = [
+  {
+    accessorKey: 'name',
+    header: 'Nombre',
+  },
+  {
+    accessorKey: 'service_type',
+    header: 'Tipo de servicio',
+    cell: ({ row }) =>
+      serviceTypeLabel[row.original.service_type] ?? row.original.service_type,
+  },
+  {
+    accessorKey: 'phone',
+    header: 'Teléfono',
+  },
+  {
+    accessorKey: 'is_trusted',
+    header: 'Confiable',
+    cell: ({ row }) => (row.original.is_trusted ? 'Sí' : 'No'),
+  },
+];
+</script>
+
+<template>
+  <UDashboardPanel>
+    <template #header>
+      <SharedNavbar title="Proveedores" />
+    </template>
+    <template #body>
+      <UContainer>
+        <div class="flex flex-row justify-between items-center mb-4">
+          <div>
+            <h1 class="text-3xl font-bold tracking-tight">Proveedores</h1>
+            <p class="mt-1 text-sm text-muted">
+              Gestiona los proveedores de servicios
+            </p>
+          </div>
+
+          <CatalogSupplierCreateSlideover ref="slideoverRef" />
+        </div>
+
+        <USeparator />
+
+        <div class="flex flex-row gap-2 my-4">
+          <UInput
+            leading-icon="i-lucide-search"
+            placeholder="Buscar proveedor"
+            class="flex-1"
+            variant="subtle"
+          />
+
+          <UButton label="Todos" variant="subtle" color="primary" />
+          <UButton label="Activos" variant="subtle" color="neutral" />
+          <UButton label="Inactivos" variant="subtle" color="neutral" />
+        </div>
+
+        <UTable
+          :columns="columns"
+          :data="data?.results"
+          :loading="isPending"
+          :get-row-id="(row: Supplier) => String(row.id)"
+          @select="onRowSelect"
+        />
+      </UContainer>
+    </template>
+  </UDashboardPanel>
+</template>

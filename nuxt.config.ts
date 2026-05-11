@@ -46,5 +46,8 @@ export default defineNuxtConfig({
 
   runtimeConfig: {
     apiUrl: '',
+    public: {
+      googleMapsApiKey: '',
+    },
   },
 });

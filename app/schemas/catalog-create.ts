@@ -46,6 +46,24 @@ export const categoryCreateSchema = z.object({
   name: requiredStr('El nombre'),
 });
 
+export const supplierCreateSchema = z.object({
+  name: requiredStr('El nombre'),
+  description: z.string(),
+  phone: requiredStr('El teléfono'),
+  email: z
+    .string()
+    .transform((s) => s.trim())
+    .pipe(z.email({ error: 'Introduce un correo válido' })),
+  service_type: z.enum(
+    ['cranes', 'mechanics', 'road_assist', 'forklifts', 'flatbed', 'transport', 'other'],
+    { error: 'Selecciona un tipo de servicio' },
+  ),
+  is_trusted: z.boolean(),
+  notes: z.string(),
+  latitude: requiredStr('La latitud'),
+  longitude: requiredStr('La longitud'),
+});
+
 export const contractLineFormSchema = z.object({
   service: z.number().int().positive({ error: 'Selecciona un servicio' }),
   price: z

@@ -1,6 +1,10 @@
 import type { CompanyCreateBody } from '~/interfaces/catalogs/company';
 import type { ClientCreateBody } from '~/interfaces/catalogs/client';
 import type { ServiceCreateBody } from '~/interfaces/catalogs/service';
+import type {
+  SupplierCreateBody,
+  SupplierServiceType,
+} from '~/interfaces/catalogs/supplier';
 
 export function mapCompanyDetail(raw: Record<string, unknown>): CompanyCreateBody {
   return {
@@ -74,6 +78,39 @@ export function mapServiceDetail(raw: Record<string, unknown>): ServiceCreateBod
 export function mapCategoryDetail(raw: Record<string, unknown>): { name: string } {
   return {
     name: String(raw.name ?? ''),
+  };
+}
+
+const SUPPLIER_SERVICE_TYPES: readonly SupplierServiceType[] = [
+  'cranes',
+  'mechanics',
+  'road_assist',
+  'forklifts',
+  'flatbed',
+  'transport',
+  'other',
+];
+
+function toSupplierServiceType(value: unknown): SupplierServiceType {
+  const v = String(value ?? '');
+  return (SUPPLIER_SERVICE_TYPES as readonly string[]).includes(v)
+    ? (v as SupplierServiceType)
+    : 'other';
+}
+
+export function mapSupplierDetail(
+  raw: Record<string, unknown>,
+): SupplierCreateBody {
+  return {
+    name: String(raw.name ?? ''),
+    description: String(raw.description ?? ''),
+    phone: String(raw.phone ?? ''),
+    email: String(raw.email ?? ''),
+    service_type: toSupplierServiceType(raw.service_type),
+    is_trusted: Boolean(raw.is_trusted),
+    notes: String(raw.notes ?? ''),
+    latitude: raw.latitude != null ? String(raw.latitude) : '',
+    longitude: raw.longitude != null ? String(raw.longitude) : '',
   };
 }
 

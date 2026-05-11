@@ -17,6 +17,7 @@ const items = computed<NavigationMenuItem[][]>(() => [
     { label: 'Clientes', to: '/admin/catalogs/clients', icon: 'i-lucide-users' },
     { label: 'Contratos', to: '/admin/catalogs/contracts', icon: 'i-lucide-file-text' },
     { label: 'Servicios', to: '/admin/catalogs/services', icon: 'i-lucide-wrench' },
+    { label: 'Proveedores', to: '/admin/catalogs/suppliers', icon: 'i-lucide-truck' },
   ],
   [
     { label: 'Configuración', type: 'label' },
