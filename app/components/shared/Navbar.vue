@@ -13,6 +13,7 @@ defineProps<Props>();
     </template>
 
     <template #right>
+      <UColorModeSwitch />
       <UButton color="neutral" icon="i-lucide-bell" variant="ghost" />
     </template>
   </UDashboardNavbar>
