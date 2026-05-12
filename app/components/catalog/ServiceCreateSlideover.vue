@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { useMutation, useQueryCache } from '@pinia/colada';
+import { SERVICE_UNIT_OPTIONS } from '~/constants/catalog-select-options';
 import type { ServiceCreateBody } from '~/interfaces/catalogs/service';
 import type { CatalogDropdownRow } from '~/interfaces/shared/catalog-dropdown.interface';
 import type { PaginatedResponse } from '~/interfaces/shared/pagination.interface';
@@ -154,11 +155,9 @@ async function requestSubmit() {
           <UInput
             :model-value="state.name"
             class="w-full uppercase"
+            maxlength="200"
             @update:model-value="(value) => (state.name = formatCatalogNameInput(value))"
           />
-        </UFormField>
-        <UFormField label="Descripción" name="description">
-          <UTextarea v-model="state.description" class="w-full" :rows="4" />
         </UFormField>
         <UFormField label="Categoría" name="category">
           <CatalogDropdownSelect
@@ -168,17 +167,19 @@ async function requestSubmit() {
           />
         </UFormField>
         <UFormField label="Unidad" name="unit">
-          <UInput v-model="state.unit" class="w-full" />
+          <USelectMenu
+            v-model="state.unit"
+            :items="[...SERVICE_UNIT_OPTIONS]"
+            value-key="value"
+            class="w-full"
+            variant="subtle"
+          />
         </UFormField>
-        <UFormField label="Garantía" name="warranty">
-          <label class="flex items-center gap-2 text-sm">
-            <input
-              v-model="state.warranty"
-              type="checkbox"
-              class="size-4 rounded border border-default"
-            >
-            <span>Incluye garantía</span>
-          </label>
+        <UFormField name="warranty">
+          <UCheckbox v-model="state.warranty" label="Incluye garantía" />
+        </UFormField>
+        <UFormField label="Descripción" name="description">
+          <UTextarea v-model="state.description" class="w-full" :rows="4" />
         </UFormField>
       </UForm>
     </template>

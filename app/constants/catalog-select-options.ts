@@ -13,6 +13,24 @@ export const COMMISSION_TYPE_OPTIONS = [
   { label: 'Fijo', value: 'FIXED' },
 ] as const;
 
+export const SERVICE_UNIT_VALUES = [
+  'service',
+  'hour',
+  'piece',
+  'km',
+  'day',
+  'other',
+] as const;
+
+export const SERVICE_UNIT_OPTIONS = [
+  { label: 'Servicio', value: 'service' },
+  { label: 'Hora', value: 'hour' },
+  { label: 'Pieza', value: 'piece' },
+  { label: 'Km', value: 'km' },
+  { label: 'Día', value: 'day' },
+  { label: 'Otro', value: 'other' },
+] as const;
+
 export const SUPPLIER_SERVICE_TYPE_OPTIONS = [
   { label: 'Grúas', value: 'cranes' },
   { label: 'Mecánica', value: 'mechanics' },

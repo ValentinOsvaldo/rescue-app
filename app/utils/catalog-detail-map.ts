@@ -1,7 +1,8 @@
 import type { CompanyCreateBody } from '~/interfaces/catalogs/company';
 import type { ClientCreateBody } from '~/interfaces/catalogs/client';
 import type { CreditFormState } from '~/interfaces/catalogs/credit';
-import type { ServiceCreateBody } from '~/interfaces/catalogs/service';
+import { SERVICE_UNIT_VALUES } from '~/constants/catalog-select-options';
+import type { ServiceCreateBody, ServiceUnit } from '~/interfaces/catalogs/service';
 import type {
   SupplierCreateBody,
   SupplierServiceType,
@@ -115,6 +116,13 @@ export function mapClientDetailToCreateBody(
   };
 }
 
+function toServiceUnit(value: unknown): ServiceUnit {
+  const unit = String(value ?? '');
+  return (SERVICE_UNIT_VALUES as readonly string[]).includes(unit)
+    ? (unit as ServiceUnit)
+    : 'service';
+}
+
 export function mapServiceDetail(raw: Record<string, unknown>): ServiceCreateBody & {
   category?: number;
 } {
@@ -123,7 +131,7 @@ export function mapServiceDetail(raw: Record<string, unknown>): ServiceCreateBod
     name: normalizeCatalogName(String(raw.name ?? '')),
     description: String(raw.description ?? ''),
     category: cat != null && cat !== '' ? Number(cat) : undefined,
-    unit: String(raw.unit ?? 'service'),
+    unit: toServiceUnit(raw.unit),
     warranty: Boolean(raw.warranty),
   };
 }

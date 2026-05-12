@@ -1,4 +1,5 @@
 import * as z from 'zod';
+import { SERVICE_UNIT_VALUES } from '~/constants/catalog-select-options';
 import type {
   ContractCreateBody,
   ContractItemCreateBody,
@@ -81,10 +82,12 @@ export function creditFormToCreateBody(
 }
 
 export const serviceCreateSchema = z.object({
-  name: catalogNameField('El nombre'),
-  description: requiredStr('La descripción'),
+  name: catalogNameField('El nombre').pipe(
+    z.string().max(200, 'El nombre admite máximo 200 caracteres'),
+  ),
+  description: z.string().transform((s) => s.trim()).default(''),
   category: z.number().int().positive({ error: 'Selecciona una categoría' }),
-  unit: requiredStr('La unidad'),
+  unit: z.enum(SERVICE_UNIT_VALUES, { error: 'Selecciona una unidad' }),
   warranty: z.boolean(),
 });
 
