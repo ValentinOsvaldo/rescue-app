@@ -6,6 +6,7 @@ export interface Service {
   unit: ServiceUnit;
   warranty: boolean;
   category_id: number;
+  category_name: string;
   is_active: boolean;
 }
 

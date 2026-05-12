@@ -48,7 +48,7 @@ const columns: TableColumn<Service>[] = [
     header: 'Garantía',
   },
   {
-    accessorKey: 'category_id',
+    accessorKey: 'category_name',
     header: 'Categoría',
   },
 ];
