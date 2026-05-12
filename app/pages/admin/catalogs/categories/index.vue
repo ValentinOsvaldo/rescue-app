@@ -6,13 +6,13 @@ useHead({
   title: 'Categorías',
 });
 
-const slideoverRef = ref<{ openEdit: (id: number) => void | Promise<void> } | null>(null);
+const slideoverRef = ref<{ openEdit: (id: number, name: string) => void } | null>(null);
 const tableRef = useTemplateRef('table');
 
 function onRowSelect(_e: Event, row: TableRow<Category>) {
-  const id = row.original.id;
+  const { id, name } = row.original;
   if (id != null) {
-    void slideoverRef.value?.openEdit(id);
+    slideoverRef.value?.openEdit(id, name);
   }
 }
 

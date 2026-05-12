@@ -1,13 +1,15 @@
 <script setup lang="ts">
 import { useMutation, useQueryCache } from '@pinia/colada';
-import type { CategoryCreateBody } from '~/interfaces/catalogs/category';
+import type {
+  CategoryCreateBody,
+  CategoryUpdateBody,
+} from '~/interfaces/catalogs/category';
 import { categoryCreateSchema } from '~/schemas/catalog-create';
 
 const toast = useToast();
 
 const open = ref(false);
 const editingId = ref<number | null>(null);
-const detailPending = ref(false);
 
 const isEdit = computed(() => editingId.value != null);
 
@@ -26,30 +28,11 @@ function prepareCreate() {
   resetForm();
 }
 
-async function loadDetail(id: number) {
-  detailPending.value = true;
-  try {
-    const raw = await $fetch<Record<string, unknown>>(
-      `/api/catalogue/multipurpose/detail/${id}/`,
-    );
-    Object.assign(state, emptyState(), mapCategoryDetail(raw));
-  } catch (e) {
-    console.error(e);
-    toast.add({
-      title: 'No se pudo cargar la categoría',
-      description: getFetchErrorMessage(e),
-      color: 'error',
-    });
-  } finally {
-    detailPending.value = false;
-  }
-}
-
-async function openEdit(id: number) {
+function openEdit(id: number, name: string) {
   editingId.value = id;
   resetForm();
+  state.name = normalizeCatalogName(name);
   open.value = true;
-  await loadDetail(id);
 }
 
 defineExpose({ openEdit });
@@ -64,13 +47,22 @@ watch(open, (v) => {
 const queryCache = useQueryCache();
 
 const { mutate, asyncStatus } = useMutation({
-  mutation: ({ body, id }: { body: CategoryCreateBody; id: number | null }) =>
+  mutation: ({
+    body,
+    id,
+  }: {
+    body: CategoryCreateBody | CategoryUpdateBody;
+    id: number | null;
+  }) =>
     id != null
       ? $fetch(`/api/catalogue/multipurpose/update/${id}/`, {
           method: 'PATCH',
-          body,
+          body: body as CategoryUpdateBody,
         })
-      : $fetch('/api/catalogue/multipurpose/create/', { method: 'POST', body }),
+      : $fetch('/api/catalogue/multipurpose/create/', {
+          method: 'POST',
+          body: body as CategoryCreateBody,
+        }),
   async onSuccess() {
     const wasEdit = editingId.value != null;
     toast.add({
@@ -95,11 +87,19 @@ const { mutate, asyncStatus } = useMutation({
 const formRef = ref<{ submit: () => Promise<void> } | null>(null);
 
 function onSubmit(payload: { data: { name: string } }) {
+  if (editingId.value != null) {
+    const body: CategoryUpdateBody = {
+      name: payload.data.name,
+    };
+    mutate({ body, id: editingId.value });
+    return;
+  }
+
   const body: CategoryCreateBody = {
     catalogue_type: 'service_category',
     name: payload.data.name,
   };
-  mutate({ body, id: editingId.value });
+  mutate({ body, id: null });
 }
 
 function onFormError() {
@@ -123,11 +123,7 @@ async function requestSubmit() {
     <UButton icon="i-lucide-plus" label="Nueva categoría" size="lg" @click="prepareCreate" />
 
     <template #body>
-      <div v-if="detailPending && isEdit" class="flex justify-center py-8">
-        <UIcon name="i-lucide-loader-circle" class="size-8 animate-spin text-muted" />
-      </div>
       <UForm
-        v-show="!detailPending || !isEdit"
         ref="formRef"
         :schema="categoryCreateSchema"
         :state="state"
@@ -151,8 +147,8 @@ async function requestSubmit() {
         <UButton
           type="button"
           label="Guardar"
-          :loading="asyncStatus === 'loading' || (detailPending && isEdit)"
-          :disabled="asyncStatus === 'loading' || (detailPending && isEdit)"
+          :loading="asyncStatus === 'loading'"
+          :disabled="asyncStatus === 'loading'"
           @click="requestSubmit"
         />
       </div>

@@ -136,12 +136,6 @@ export function mapServiceDetail(raw: Record<string, unknown>): ServiceCreateBod
   };
 }
 
-export function mapCategoryDetail(raw: Record<string, unknown>): { name: string } {
-  return {
-    name: normalizeCatalogName(String(raw.name ?? '')),
-  };
-}
-
 const SUPPLIER_SERVICE_TYPES: readonly SupplierServiceType[] = [
   'cranes',
   'mechanics',
