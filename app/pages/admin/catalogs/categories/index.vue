@@ -16,10 +16,12 @@ function onRowSelect(_e: Event, row: TableRow<Category>) {
   }
 }
 
+const apiFetch = useApiFetch();
+
 const { data, isPending } = useQuery({
   key: () => ['catalog-categories', 'service_category'],
   query: () =>
-    $fetch<PaginatedResponse<Category>>(`/api/catalogue/multipurpose/list/`, {
+    apiFetch<PaginatedResponse<Category>>(`/api/catalogue/multipurpose/list/`, {
       query: { catalogue_type: 'service_category' },
     }),
 });

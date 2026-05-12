@@ -19,9 +19,11 @@ function onRowSelect(_e: Event, row: TableRow<Supplier>) {
   }
 }
 
+const apiFetch = useApiFetch();
+
 const { data, isPending } = useQuery({
   key: () => ['suppliers'],
-  query: () => $fetch<PaginatedResponse<Supplier>>(`/api/supplier/list/`),
+  query: () => apiFetch<PaginatedResponse<Supplier>>(`/api/supplier/list/`),
 });
 
 const serviceTypeLabel: Record<string, string> = Object.fromEntries(

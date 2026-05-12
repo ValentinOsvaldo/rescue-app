@@ -11,8 +11,8 @@ export function mapCompanyDetail(raw: Record<string, unknown>): CompanyCreateBod
   return {
     name: normalizeCatalogName(String(raw.name ?? '')),
     business_name: String(raw.business_name ?? ''),
-    rfc: String(raw.rfc ?? ''),
-    phone: String(raw.phone ?? ''),
+    rfc: normalizeCatalogName(String(raw.rfc ?? '')),
+    phone: formatMexicoPhoneInput(String(raw.phone ?? '')),
     email: String(raw.email ?? ''),
     address: String(raw.address ?? ''),
     client_type: String(raw.client_type ?? 'CREDIT'),
@@ -38,8 +38,8 @@ export function mapClientDetail(raw: Record<string, unknown>): Omit<
   return {
     name: normalizeCatalogName(String(raw.name ?? '')),
     business_name: String(raw.business_name ?? ''),
-    rfc: String(raw.rfc ?? ''),
-    phone: String(raw.phone ?? ''),
+    rfc: normalizeCatalogName(String(raw.rfc ?? '')),
+    phone: formatMexicoPhoneInput(String(raw.phone ?? '')),
     email: String(raw.email ?? ''),
     address: String(raw.address ?? ''),
     client_type: String(raw.client_type ?? 'CASH'),
@@ -157,7 +157,7 @@ export function mapSupplierDetail(
   return {
     name: normalizeCatalogName(String(raw.name ?? '')),
     description: String(raw.description ?? ''),
-    phone: String(raw.phone ?? ''),
+    phone: formatMexicoPhoneInput(String(raw.phone ?? '')),
     email: String(raw.email ?? ''),
     service_type: toSupplierServiceType(raw.service_type),
     is_trusted: Boolean(raw.is_trusted),

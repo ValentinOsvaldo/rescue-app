@@ -15,16 +15,18 @@ const queryCache = useQueryCache();
 const creatingClientId = ref<number | null>(null);
 const UButton = resolveComponent('UButton');
 
+const apiFetch = useApiFetch();
+
 const { data: clientsData, isPending: clientsPending } = useQuery({
   key: () => ['clients'],
   query: () =>
-    $fetch<PaginatedResponse<Client>>(`/api/catalogue/client/list/`),
+    apiFetch<PaginatedResponse<Client>>(`/api/catalogue/client/list/`),
 });
 
 const { data: contractsData, isPending: contractsPending } = useQuery({
   key: () => ['contracts'],
   query: () =>
-    $fetch<PaginatedResponse<Contract>>(`/api/catalogue/contract/list/`),
+    apiFetch<PaginatedResponse<Contract>>(`/api/catalogue/contract/list/`),
 });
 
 const rows = computed<ClientContractRow[]>(() => {

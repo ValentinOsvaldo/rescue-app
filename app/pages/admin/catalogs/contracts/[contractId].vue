@@ -26,10 +26,12 @@ const headerState = reactive({
   notes: '',
 });
 
+const apiFetch = useApiFetch();
+
 const { data: contractDetail, isPending: detailPending } = useQuery({
   key: () => ['contract-detail', contractId.value],
   query: () =>
-    $fetch<Record<string, unknown>>(
+    apiFetch<Record<string, unknown>>(
       `/api/catalogue/contract/detail/${contractId.value}/`,
     ),
 });
@@ -44,7 +46,7 @@ const { data: clientDetail, isPending: clientPending } = useQuery({
   query: async () => {
     const id = clientId.value;
     if (id == null) return null;
-    const raw = await $fetch<Record<string, unknown>>(
+    const raw = await apiFetch<Record<string, unknown>>(
       `/api/catalogue/client/detail/${id}/`,
     );
     return mapClientDetail(raw);
@@ -99,7 +101,7 @@ const contractTitle = computed(
 const { data: itemsData, isPending: itemsPending } = useQuery({
   key: () => ['contract-items', contractId.value],
   query: () =>
-    $fetch<PaginatedResponse<ContractItem>>(
+    apiFetch<PaginatedResponse<ContractItem>>(
       `/api/catalogue/contract/${contractId.value}/items/`,
     ),
 });

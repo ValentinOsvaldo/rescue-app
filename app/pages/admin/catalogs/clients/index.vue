@@ -16,10 +16,12 @@ function onRowSelect(_e: Event, row: TableRow<Client>) {
   }
 }
 
+const apiFetch = useApiFetch();
+
 const { data, isPending } = useQuery({
   key: () => ['clients'],
   query: () =>
-    $fetch<PaginatedResponse<Client>>(`/api/catalogue/client/list/`),
+    apiFetch<PaginatedResponse<Client>>(`/api/catalogue/client/list/`),
 });
 
 const columns: TableColumn<Client>[] = [

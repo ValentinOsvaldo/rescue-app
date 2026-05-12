@@ -13,10 +13,13 @@ const requiredStr = (label: string) =>
 const catalogNameField = (label: string) =>
   requiredStr(label).transform((value) => normalizeCatalogName(value));
 
+const catalogRfcField = (label: string) =>
+  requiredStr(label).transform((value) => normalizeCatalogName(value));
+
 export const companyCreateSchema = z.object({
   name: catalogNameField('El nombre'),
   business_name: requiredStr('La razón social'),
-  rfc: requiredStr('El RFC'),
+  rfc: catalogRfcField('El RFC'),
   phone: requiredStr('El teléfono'),
   email: z
     .string()

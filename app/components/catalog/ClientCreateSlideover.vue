@@ -288,10 +288,27 @@ async function requestSubmit() {
           </UFormField>
           <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <UFormField label="RFC" name="rfc">
-              <UInput v-model="state.rfc" class="w-full" />
+              <UInput
+                :model-value="state.rfc"
+                class="w-full uppercase"
+                maxlength="13"
+                @update:model-value="
+                  (value) => (state.rfc = formatCatalogRfcInput(value))
+                "
+              />
             </UFormField>
             <UFormField label="Teléfono" name="phone">
-              <UInput v-model="state.phone" class="w-full" />
+              <UInput
+                :model-value="state.phone"
+                class="w-full"
+                type="tel"
+                inputmode="tel"
+                autocomplete="tel"
+                :placeholder="MEXICO_PHONE_MASK.replaceAll('#', '0')"
+                @update:model-value="
+                  (value) => (state.phone = formatMexicoPhoneInput(value))
+                "
+              />
             </UFormField>
           </div>
           <UFormField label="Email" name="email">
