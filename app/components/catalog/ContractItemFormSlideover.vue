@@ -78,10 +78,13 @@ watch(open, (value) => {
   }
 });
 
-function fetchServiceDropdown(name: string) {
+function fetchServiceDropdown(
+  name: string,
+  options?: { signal?: AbortSignal },
+) {
   return $fetch<PaginatedResponse<CatalogDropdownRow>>(
     '/api/catalogue/service/dropdown/',
-    { query: { name } },
+    { query: { name }, signal: options?.signal },
   );
 }
 

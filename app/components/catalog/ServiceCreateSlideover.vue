@@ -74,10 +74,13 @@ watch(open, (v) => {
   }
 });
 
-function fetchCategoryDropdown(name: string) {
+function fetchCategoryDropdown(
+  name: string,
+  options?: { signal?: AbortSignal },
+) {
   return $fetch<PaginatedResponse<CatalogDropdownRow>>(
     '/api/catalogue/multipurpose/dropdown/',
-    { query: { type: 'service_category', name } },
+    { query: { type: 'service_category', name }, signal: options?.signal },
   );
 }
 

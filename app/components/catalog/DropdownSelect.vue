@@ -1,19 +1,18 @@
 <script setup lang="ts">
-import type { CatalogDropdownRow } from '~/interfaces/shared/catalog-dropdown.interface';
-import type { PaginatedResponse } from '~/interfaces/shared/pagination.interface';
+import type { CatalogDropdownFetcher } from '~/composables/useCatalogDropdown';
 
 const props = defineProps<{
   modelValue?: number | null;
   placeholder?: string;
-  fetcher: (search: string) => Promise<PaginatedResponse<CatalogDropdownRow>>;
+  fetcher: CatalogDropdownFetcher;
 }>();
 
 const emit = defineEmits<{
   'update:modelValue': [value: number | undefined];
 }>();
 
-const { searchTerm, items, loading } = useCatalogDropdown((search) =>
-  props.fetcher(search),
+const { searchTerm, items, loading, errorMessage } = useCatalogDropdown(
+  (search, options) => props.fetcher(search, options),
 );
 
 const inner = computed({
@@ -34,18 +33,27 @@ watch(
 </script>
 
 <template>
-  <USelectMenu
-    :key="selectKey"
-    v-model="inner"
-    v-model:search-term="searchTerm"
-    ignore-filter
-    value-key="id"
-    label-key="name"
-    :items="items"
-    :loading="loading"
-    :placeholder="placeholder"
-    clear
-    class="w-full"
-    variant="subtle"
-  />
+  <div class="w-full space-y-1">
+    <USelectMenu
+      :key="selectKey"
+      v-model="inner"
+      v-model:search-term="searchTerm"
+      ignore-filter
+      value-key="id"
+      label-key="name"
+      :items="items"
+      :loading="loading"
+      :placeholder="placeholder"
+      clear
+      class="w-full"
+      variant="subtle"
+    />
+    <p
+      v-if="errorMessage"
+      class="text-xs text-error"
+      role="alert"
+    >
+      {{ errorMessage }}
+    </p>
+  </div>
 </template>

@@ -49,16 +49,20 @@ watch(open, (v) => {
   }
 });
 
-async function fetchClientDropdown(name: string) {
+async function fetchClientDropdown(
+  name: string,
+  options?: { signal?: AbortSignal },
+) {
+  const signal = options?.signal;
   try {
     return await $fetch<PaginatedResponse<CatalogDropdownRow>>(
       '/api/catalogue/client/dropdown/',
-      { query: { name } },
+      { query: { name }, signal },
     );
   } catch {
     const res = await $fetch<PaginatedResponse<Client>>(
       '/api/catalogue/client/list/',
-      { query: { name } },
+      { query: { name }, signal },
     );
     return {
       next: res.next,

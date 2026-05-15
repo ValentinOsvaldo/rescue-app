@@ -126,18 +126,41 @@ watch(open, (v) => {
   }
 });
 
-function fetchCompanyDropdown(name: string) {
+function fetchCompanyDropdown(
+  name: string,
+  options?: { signal?: AbortSignal },
+) {
   return $fetch<PaginatedResponse<CatalogDropdownRow>>(
     '/api/catalogue/company/dropdown/',
-    { query: { name } },
+    { query: { name }, signal: options?.signal },
   );
 }
 
-function fetchSellerDropdown(name: string) {
-  return $fetch<PaginatedResponse<CatalogDropdownRow>>(
+function mapSellerDropdownRow(raw: Record<string, unknown>): CatalogDropdownRow {
+  const id = Number(raw.id);
+  const first = String(raw.first_name ?? '').trim();
+  const last = String(raw.last_name ?? '').trim();
+  const combined = [first, last].filter(Boolean).join(' ').trim();
+  const name =
+    combined
+    || String(raw.name ?? '').trim()
+    || String(raw.username ?? '').trim()
+    || 'Sin nombre';
+  return { id, name };
+}
+
+function fetchSellerDropdown(
+  name: string,
+  options?: { signal?: AbortSignal },
+) {
+  return $fetch<PaginatedResponse<Record<string, unknown>>>(
     '/api/auth/user/dropdown/',
-    { query: { role: 'seller', name } },
-  );
+    { query: { role: 'seller', name }, signal: options?.signal },
+  ).then((res) => ({
+    next: res.next,
+    previous: res.previous,
+    results: (res.results ?? []).map(mapSellerDropdownRow),
+  }));
 }
 
 const queryCache = useQueryCache();
