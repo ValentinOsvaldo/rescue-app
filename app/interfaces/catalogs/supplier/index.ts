@@ -16,6 +16,27 @@ export interface Supplier {
   is_active: boolean;
 }
 
+export interface SupplierListItem {
+  id: number;
+  name: string;
+  service_type: SupplierServiceType;
+  phone: string;
+  is_trusted: boolean;
+  is_active: boolean;
+  score: number;
+  distance_km?: number | null;
+  distance?: number | null;
+  latitude?: string | number | null;
+  longitude?: string | number | null;
+}
+
+export interface SupplierListResponse {
+  count: number;
+  results: SupplierListItem[];
+  next?: string | null;
+  previous?: string | null;
+}
+
 export interface SupplierCreateBody {
   name: string;
   description: string;

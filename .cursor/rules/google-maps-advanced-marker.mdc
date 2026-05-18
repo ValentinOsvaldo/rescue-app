@@ -1,0 +1,58 @@
+---
+description: Google Maps — solo AdvancedMarker; no usar Marker (deprecado)
+globs: app/components/**/*.vue,app/utils/map*.ts
+alwaysApply: false
+---
+
+# Google Maps: AdvancedMarker únicamente
+
+En este proyecto los mapas usan **vue3-google-map** con un `map-id` en `GoogleMap`. Los marcadores deben ser siempre **`AdvancedMarker`** (y `PinElement` si hace falta personalizar el pin).
+
+**No usar** el componente `Marker` de vue3-google-map ni `google.maps.Marker` — están deprecados.
+
+## Patrón
+
+```vue
+<script setup lang="ts">
+import { GoogleMap, AdvancedMarker, PinElement } from 'vue3-google-map';
+</script>
+
+<template>
+  <GoogleMap :map-id="mapId" ...>
+    <AdvancedMarker
+      v-if="position"
+      :options="{ position, title: 'Etiqueta' }"
+    >
+      <template #content>
+        <PinElement
+          :background="'#2563eb'"
+          :border-color="'#1d4ed8'"
+          :glyph-color="'#ffffff'"
+        />
+      </template>
+    </AdvancedMarker>
+  </GoogleMap>
+</template>
+```
+
+## Referencias en el repo
+
+- `app/components/shared/MapPinPicker.vue` — pin arrastrable con `AdvancedMarker`
+- `app/components/operational/rescue-request/SupplierStepMap.vue` — varios pins con `PinElement`
+- `app/components/shared/Map.vue` — contenedor `GoogleMap` (slot para markers hijos)
+
+## Prohibido
+
+```vue
+<!-- ❌ NO -->
+import { Marker } from 'vue3-google-map';
+<Marker :options="{ position }" />
+
+<!-- ❌ NO -->
+new google.maps.Marker({ map, position });
+```
+
+## Notas
+
+- `GoogleMap` debe tener `:map-id` configurado (requerido para Advanced Markers).
+- Para encuadrar varios puntos, reutilizar `fitMapToPoints` en `app/utils/map-bounds.ts`.

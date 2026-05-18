@@ -1,0 +1,23 @@
+export type LatLngLiteral = { lat: number; lng: number };
+
+export function fitMapToPoints(
+  map: google.maps.Map,
+  points: LatLngLiteral[],
+) {
+  if (points.length === 0) return;
+
+  if (points.length === 1) {
+    map.panTo(points[0]);
+    const zoom = map.getZoom();
+    if (zoom == null || zoom < 14) {
+      map.setZoom(14);
+    }
+    return;
+  }
+
+  const bounds = new google.maps.LatLngBounds();
+  for (const point of points) {
+    bounds.extend(point);
+  }
+  map.fitBounds(bounds, { top: 56, right: 56, bottom: 56, left: 56 });
+}

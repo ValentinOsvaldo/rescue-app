@@ -4,15 +4,6 @@ import { AdvancedMarker } from 'vue3-google-map';
 const latitude = defineModel<string | null>('latitude', { default: null });
 const longitude = defineModel<string | null>('longitude', { default: null });
 
-const props = withDefaults(
-  defineProps<{
-    requestInitialLocation?: boolean;
-  }>(),
-  {
-    requestInitialLocation: false,
-  },
-);
-
 const config = useRuntimeConfig();
 const toast = useToast();
 
@@ -114,14 +105,6 @@ watch(
   { immediate: true },
 );
 
-watch(
-  () => props.requestInitialLocation,
-  (shouldRequest) => {
-    if (!shouldRequest || hasCoordinates.value) return;
-    void requestCurrentLocation();
-  },
-  { immediate: true },
-);
 </script>
 
 <template>

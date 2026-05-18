@@ -5,49 +5,108 @@ import type { Client } from '~/interfaces/catalogs/client';
 import type { RescueCreateResponse } from '~/interfaces/rescue';
 import type { CatalogDropdownRow } from '~/interfaces/shared/catalog-dropdown.interface';
 import type { PaginatedResponse } from '~/interfaces/shared/pagination.interface';
-import { RESCUE_SERVICE_TYPE_OPTIONS } from '~/constants/rescue-select-options';
 import {
+  emptyRescueRequestState,
+  getStepSchemaForIndex,
   rescueCreateFormSchema,
   rescueFormToCreateBody,
   type RescueCreateFormOutput,
+  type RescueRequestFormState,
 } from '~/schemas/rescue-create';
+import {
+  getRescueStepCount,
+  getRescueStepItems,
+} from '~/utils/rescue-request';
+import { mapUserDropdownRow } from '~/utils/user-dropdown';
 
 const toast = useToast();
 
 const open = ref(false);
+const currentStep = ref(0);
+const stepError = ref<string | null>(null);
 
-const requestInitialLocation = computed(() => open.value);
+const state = reactive<RescueRequestFormState>(emptyRescueRequestState());
 
-function emptyState() {
-  return {
-    service_type: 'rescue' as const,
-    client: undefined as number | undefined,
-    general_public: false,
-    location_latitude: null as string | null,
-    location_longitude: null as string | null,
-    location_description: '',
-    internal_notes: '',
-  };
+const stepItems = computed(() => getRescueStepItems(state.service_type));
+const lastStepIndex = computed(() => getRescueStepCount(state.service_type) - 1);
+const isLastStep = computed(() => currentStep.value >= lastStepIndex.value);
+const isSupplierStep = computed(
+  () => state.service_type === 'rescue' && currentStep.value === 2,
+);
+
+const modalContentClass = computed(() =>
+  isSupplierStep.value ? 'max-w-6xl' : 'max-w-2xl',
+);
+
+function clearFormState() {
+  Object.assign(state, emptyRescueRequestState());
+  stepError.value = null;
 }
 
-const state = reactive(emptyState());
+function resetWizard() {
+  clearFormState();
+  currentStep.value = 0;
+}
 
-function resetForm() {
-  Object.assign(state, emptyState());
+function scheduleStepResetAfterClose() {
+  nextTick(() => {
+    if (!open.value) {
+      currentStep.value = 0;
+    }
+  });
 }
 
 function openCreate() {
-  resetForm();
+  resetWizard();
   open.value = true;
 }
 
 defineExpose({ openCreate });
 
-watch(open, (v) => {
-  if (!v) {
-    resetForm();
+watch(open, (isOpen) => {
+  if (!isOpen) {
+    clearFormState();
+    scheduleStepResetAfterClose();
   }
 });
+
+watch(
+  () => state.service_type,
+  () => {
+    currentStep.value = 0;
+    stepError.value = null;
+    if (state.service_type !== 'rescue') {
+      state.supplier = null;
+      state.supplierLabel = '';
+      state.service_description = '';
+    }
+  },
+);
+
+watch(
+  () => state.client,
+  async (id, _prev, onCleanup) => {
+    let active = true;
+    onCleanup(() => {
+      active = false;
+    });
+
+    if (id == null) {
+      if (active) state.clientLabel = '';
+      return;
+    }
+    try {
+      const raw = await $fetch<Record<string, unknown>>(
+        `/api/catalogue/client/detail/${id}/`,
+      );
+      if (!active) return;
+      state.clientLabel = String(raw.name ?? '').trim() || `Cliente #${id}`;
+    } catch {
+      if (!active) return;
+      state.clientLabel = `Cliente #${id}`;
+    }
+  },
+);
 
 async function fetchClientDropdown(
   name: string,
@@ -72,6 +131,20 @@ async function fetchClientDropdown(
   }
 }
 
+function fetchManagerDropdown(
+  name: string,
+  options?: { signal?: AbortSignal },
+) {
+  return $fetch<PaginatedResponse<Record<string, unknown>>>(
+    '/api/auth/user/dropdown/',
+    { query: { name }, signal: options?.signal },
+  ).then((res) => ({
+    next: res.next,
+    previous: res.previous,
+    results: (res.results ?? []).map(mapUserDropdownRow),
+  }));
+}
+
 const { mutate, asyncStatus } = useMutation({
   mutation: async (body: ReturnType<typeof rescueFormToCreateBody>) => {
     const data = await $fetch<RescueCreateResponse>('/api/rescue/', {
@@ -84,7 +157,6 @@ const { mutate, asyncStatus } = useMutation({
       color: 'success',
     });
     open.value = false;
-    resetForm();
     return data;
   },
   onError: (e) => {
@@ -98,6 +170,81 @@ const { mutate, asyncStatus } = useMutation({
 });
 
 const formRef = ref<{ submit: () => Promise<void> } | null>(null);
+
+function pickStepPayload(stepIndex: number) {
+  if (state.service_type === 'rescue') {
+    switch (stepIndex) {
+      case 0:
+        return {
+          service_type: state.service_type,
+          client: state.client,
+          general_public: state.general_public,
+          serialNumber: state.serialNumber,
+          manager: state.manager,
+        };
+      case 1:
+        return {
+          location_latitude: state.location_latitude,
+          location_longitude: state.location_longitude,
+          location_description: state.location_description,
+          service_description: state.service_description,
+        };
+      case 2:
+        return { supplier: state.supplier };
+      case 3:
+        return {
+          manager: state.manager,
+          internal_notes: state.internal_notes,
+        };
+      default:
+        return {};
+    }
+  }
+  if (stepIndex === 0) {
+    return {
+      service_type: state.service_type,
+      client: state.client,
+      general_public: state.general_public,
+      serialNumber: state.serialNumber,
+      manager: state.manager,
+    };
+  }
+  return {
+    manager: state.manager,
+    internal_notes: state.internal_notes,
+  };
+}
+
+function validateCurrentStep(): boolean {
+  stepError.value = null;
+  const schema = getStepSchemaForIndex(currentStep.value, state.service_type);
+  const result = schema.safeParse(pickStepPayload(currentStep.value));
+  if (!result.success) {
+    const first = result.error.issues[0];
+    stepError.value = first?.message ?? 'Revisa los campos del paso actual';
+    return false;
+  }
+  return true;
+}
+
+function goNext() {
+  if (!validateCurrentStep()) return;
+  if (isLastStep.value) return;
+  currentStep.value += 1;
+  stepError.value = null;
+}
+
+function goPrev() {
+  if (currentStep.value <= 0) return;
+  currentStep.value -= 1;
+  stepError.value = null;
+}
+
+function skipSupplier() {
+  state.supplier = null;
+  state.supplierLabel = '';
+  goNext();
+}
 
 function onSubmit(payload: FormSubmitEvent<RescueCreateFormOutput>) {
   mutate(rescueFormToCreateBody(payload.data));
@@ -114,6 +261,14 @@ function cancel() {
 async function requestSubmit() {
   await formRef.value?.submit();
 }
+
+function onPrimaryAction() {
+  if (isLastStep.value) {
+    void requestSubmit();
+  } else {
+    goNext();
+  }
+}
 </script>
 
 <template>
@@ -121,62 +276,64 @@ async function requestSubmit() {
     v-model:open="open"
     scrollable
     title="Nueva solicitud"
-    :ui="{ content: 'max-w-2xl' }"
+    :ui="{ content: modalContentClass }"
   >
     <template #body>
-      <UForm
-        ref="formRef"
-        :schema="rescueCreateFormSchema"
-        :state="state"
-        class="space-y-4"
-        @submit="onSubmit"
-        @error="onFormError"
-      >
-        <UFormField label="Tipo de servicio" name="service_type">
-          <USelectMenu
-            v-model="state.service_type"
-            :items="[...RESCUE_SERVICE_TYPE_OPTIONS]"
-            value-key="value"
-            class="w-full"
-            variant="subtle"
+      <div v-if="open" class="space-y-4">
+        <UStepper
+          v-model="currentStep"
+          :items="stepItems"
+          disabled
+          class="mb-6 w-full"
+        />
+
+        <UForm
+          ref="formRef"
+          :schema="rescueCreateFormSchema"
+          :state="state"
+          class="space-y-4"
+          @submit="onSubmit"
+          @error="onFormError"
+        >
+          <OperationalRescueRequestStepsBasicsStep
+            v-if="currentStep === 0"
+            v-model="state"
+            :fetch-client-dropdown="fetchClientDropdown"
+            :fetch-manager-dropdown="fetchManagerDropdown"
           />
-        </UFormField>
 
-        <UFormField label="Cliente" name="client">
-          <CatalogDropdownSelect
-            v-model="state.client"
-            placeholder="Buscar cliente"
-            :fetcher="fetchClientDropdown"
+        <OperationalRescueRequestStepsLocationStep
+          v-else-if="state.service_type === 'rescue' && currentStep === 1"
+          v-model="state"
+        />
+
+          <OperationalRescueRequestStepsSupplierStep
+            v-else-if="state.service_type === 'rescue' && currentStep === 2"
+            v-model="state"
           />
-        </UFormField>
 
-        <UFormField name="general_public">
-          <UCheckbox
-            v-model="state.general_public"
-            label="Público en general"
+          <OperationalRescueRequestStepsSummaryStep
+            v-else-if="
+              (state.service_type === 'rescue' && currentStep === 3)
+                || (state.service_type !== 'rescue' && currentStep === 1)
+            "
+            v-model="state"
+            :fetch-manager-dropdown="fetchManagerDropdown"
           />
-        </UFormField>
 
-        <UFormField label="Ubicación en mapa" name="location_latitude">
-          <SharedMapPinPicker
-            v-model:latitude="state.location_latitude"
-            v-model:longitude="state.location_longitude"
-            :request-initial-location="requestInitialLocation"
-          />
-        </UFormField>
-
-        <UFormField label="Descripción de ubicación" name="location_description">
-          <UInput v-model="state.location_description" class="w-full" />
-        </UFormField>
-
-        <UFormField label="Notas internas" name="internal_notes">
-          <UTextarea v-model="state.internal_notes" class="w-full" :rows="3" />
-        </UFormField>
-      </UForm>
+          <p
+            v-if="stepError"
+            class="text-sm text-error"
+            role="alert"
+          >
+            {{ stepError }}
+          </p>
+        </UForm>
+      </div>
     </template>
 
     <template #footer>
-      <div class="flex w-full justify-end gap-2">
+      <div class="flex w-full flex-wrap items-center justify-between gap-2">
         <UButton
           type="button"
           color="neutral"
@@ -184,13 +341,34 @@ async function requestSubmit() {
           label="Cancelar"
           @click="cancel"
         />
-        <UButton
-          type="button"
-          label="Crear solicitud"
-          :loading="asyncStatus === 'loading'"
-          :disabled="asyncStatus === 'loading'"
-          @click="requestSubmit"
-        />
+        <div class="flex flex-wrap justify-end gap-2">
+          <UButton
+            v-if="isSupplierStep"
+            type="button"
+            color="neutral"
+            variant="ghost"
+            label="Omitir proveedor"
+            @click="skipSupplier"
+          />
+          <UButton
+            v-if="currentStep > 0"
+            type="button"
+            color="neutral"
+            variant="outline"
+            icon="i-lucide-chevron-left"
+            label="Anterior"
+            @click="goPrev"
+          />
+          <UButton
+            type="button"
+            :label="isLastStep ? 'Crear solicitud' : 'Siguiente'"
+            :icon="isLastStep ? undefined : 'i-lucide-chevron-right'"
+            :trailing="!isLastStep"
+            :loading="asyncStatus === 'loading'"
+            :disabled="asyncStatus === 'loading'"
+            @click="onPrimaryAction"
+          />
+        </div>
       </div>
     </template>
   </UModal>
