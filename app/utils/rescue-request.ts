@@ -1,11 +1,6 @@
 import type { StepperItem } from '@nuxt/ui';
 import type { RescueServiceType } from '~/interfaces/rescue';
 
-/** Service types that show gestor field on step 1 (not rescue). */
-export function showsGestorInStepOne(serviceType: RescueServiceType): boolean {
-  return serviceType !== 'rescue';
-}
-
 export function getRescueStepItems(
   serviceType: RescueServiceType,
 ): StepperItem[] {

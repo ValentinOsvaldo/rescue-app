@@ -1,22 +1,12 @@
 <script setup lang="ts">
 import type { RescueRequestFormState } from '~/schemas/rescue-create';
-import type { CatalogDropdownFetcher } from '~/composables/useCatalogDropdown';
 import { RESCUE_SERVICE_TYPE_OPTIONS } from '~/constants/rescue-select-options';
-import { showsGestorInStepOne } from '~/utils/rescue-request';
 import { parseRescueCoord } from '~/schemas/rescue-create';
 
 const state = defineModel<RescueRequestFormState>({ required: true });
 
-defineProps<{
-  fetchManagerDropdown: CatalogDropdownFetcher;
-}>();
-
 const serviceTypeOption = computed(() =>
   RESCUE_SERVICE_TYPE_OPTIONS.find((o) => o.value === state.value.service_type),
-);
-
-const gestorFromStepOne = computed(() =>
-  showsGestorInStepOne(state.value.service_type),
 );
 
 const locationCoordsLabel = computed(() => {
@@ -60,6 +50,12 @@ const locationCoordsLabel = computed(() => {
           <dt class="text-muted">Público en general</dt>
           <dd class="font-medium">Sí</dd>
         </div>
+        <div v-if="state.manager">
+          <dt class="text-muted">Gestor</dt>
+          <dd class="font-medium">
+            {{ state.managerLabel || `Usuario #${state.manager}` }}
+          </dd>
+        </div>
         <div class="sm:col-span-2">
           <dt class="text-muted">Ubicación</dt>
           <dd class="font-medium">
@@ -87,26 +83,8 @@ const locationCoordsLabel = computed(() => {
             }}
           </dd>
         </div>
-        <div v-if="gestorFromStepOne && state.manager">
-          <dt class="text-muted">Gestor (paso 1)</dt>
-          <dd class="font-medium">
-            {{ state.managerLabel || `Usuario #${state.manager}` }}
-          </dd>
-        </div>
       </dl>
     </UCard>
-
-    <UFormField
-      v-if="!gestorFromStepOne"
-      label="Gestor"
-      name="manager"
-    >
-      <CatalogDropdownSelect
-        v-model="state.manager"
-        placeholder="Buscar gestor"
-        :fetcher="fetchManagerDropdown"
-      />
-    </UFormField>
 
     <UFormField label="Nota interna" name="internal_notes">
       <UTextarea v-model="state.internal_notes" class="w-full" :rows="4" />

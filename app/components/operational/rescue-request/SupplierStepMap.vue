@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { GoogleMap, AdvancedMarker, PinElement } from 'vue3-google-map';
+import { GoogleMap, AdvancedMarker } from 'vue3-google-map';
 import type { SupplierMapPin } from '~/interfaces/rescue';
 import { parseRescueCoord } from '~/schemas/rescue-create';
 import { fitMapToPoints } from '~/utils/map-bounds';
@@ -98,15 +98,12 @@ watch(
         <AdvancedMarker
           v-if="unitPosition"
           :options="{ position: unitPosition, title: 'Ubicación de la unidad' }"
-        >
-          <template #content>
-            <PinElement
-              :background="'#2563eb'"
-              :border-color="'#1d4ed8'"
-              :glyph-color="'#ffffff'"
-            />
-          </template>
-        </AdvancedMarker>
+          :pin-options="{
+            background: '#fbbc04',
+            borderColor: '#e6a800',
+            glyphColor: '#ffffff',
+          }"
+        />
 
         <AdvancedMarker
           v-if="supplierPosition && selectedSupplier"
@@ -114,15 +111,12 @@ watch(
             position: supplierPosition,
             title: selectedSupplier.name,
           }"
-        >
-          <template #content>
-            <PinElement
-              :background="'#16a34a'"
-              :border-color="'#15803d'"
-              :glyph-color="'#ffffff'"
-            />
-          </template>
-        </AdvancedMarker>
+          :pin-options="{
+            background: '#16a34a',
+            borderColor: '#15803d',
+            glyphColor: '#ffffff',
+          }"
+        />
       </GoogleMap>
     </ClientOnly>
   </div>

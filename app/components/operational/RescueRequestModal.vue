@@ -193,7 +193,6 @@ function pickStepPayload(stepIndex: number) {
         return { supplier: state.supplier };
       case 3:
         return {
-          manager: state.manager,
           internal_notes: state.internal_notes,
         };
       default:
@@ -210,7 +209,6 @@ function pickStepPayload(stepIndex: number) {
     };
   }
   return {
-    manager: state.manager,
     internal_notes: state.internal_notes,
   };
 }
@@ -318,7 +316,6 @@ function onPrimaryAction() {
                 || (state.service_type !== 'rescue' && currentStep === 1)
             "
             v-model="state"
-            :fetch-manager-dropdown="fetchManagerDropdown"
           />
 
           <p

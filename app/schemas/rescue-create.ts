@@ -1,7 +1,5 @@
 import * as z from 'zod';
 import type { RescueCreateBody, RescueServiceType } from '~/interfaces/rescue';
-import { showsGestorInStepOne } from '~/utils/rescue-request';
-
 const RESCUE_SERVICE_TYPES = [
   'rescue',
   'loan',
@@ -100,10 +98,7 @@ export const rescueStepBasicsSchema = z
     manager: managerFieldOptional,
   })
   .superRefine((data, ctx) => {
-    if (
-      showsGestorInStepOne(data.service_type as RescueServiceType)
-      && data.manager == null
-    ) {
+    if (data.manager == null) {
       ctx.addIssue({
         code: 'custom',
         message: 'Selecciona un gestor',
@@ -130,7 +125,6 @@ export const rescueStepSupplierSchema = z.object({
 });
 
 export const rescueStepSummarySchema = z.object({
-  manager: managerFieldOptional,
   internal_notes: z.string().transform((s) => s.trim()),
 });
 
@@ -149,6 +143,13 @@ export const rescueCreateFormSchema = z
     internal_notes: z.string().transform((s) => s.trim()),
   })
   .superRefine((data, ctx) => {
+    if (data.manager == null) {
+      ctx.addIssue({
+        code: 'custom',
+        message: 'Selecciona un gestor',
+        path: ['manager'],
+      });
+    }
     if (data.service_type !== 'rescue') {
       return;
     }
@@ -177,16 +178,6 @@ export const rescueCreateFormSchema = z
         code: 'custom',
         message: 'Indica la descripción del servicio',
         path: ['service_description'],
-      });
-    }
-    if (
-      showsGestorInStepOne(data.service_type as RescueServiceType)
-      && data.manager == null
-    ) {
-      ctx.addIssue({
-        code: 'custom',
-        message: 'Selecciona un gestor',
-        path: ['manager'],
       });
     }
   });

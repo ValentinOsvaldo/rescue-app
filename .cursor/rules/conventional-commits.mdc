@@ -1,21 +1,62 @@
 ---
-description: Use Conventional Commits for commit messages
+description: Conventional Commits — full guide for commit messages
 alwaysApply: true
 ---
 
 # Conventional Commits
 
-When generating commit messages, follow the [Conventional Commits](https://www.conventionalcommits.org/) specification.
+Follow the [Conventional Commits](https://www.conventionalcommits.org/) specification.
 
-- Use an appropriate type prefix: `feat`, `fix`, `docs`, `style`, `refactor`, `perf`, `test`, `build`, `ci`, `chore`, or `revert`.
-- Write a clear, specific description in the imperative mood.
-- Keep the subject line concise; add a body only when extra context is needed.
-- Use a scope when it helps identify the affected area.
+## Format
 
-```text
-feat(catalog): add sectioned layout to client create slideover
-fix(auth): handle expired refresh token on login
-test(clients): cover client create validation schema
+```
+<type>(<scope>): <description>
+
+[optional body]
+
+[optional footer: BREAKING CHANGE or issue refs]
 ```
 
-Avoid vague subjects such as `update files`, `fix bug`, or `changes`.
+## Types
+
+| Type | When to use |
+|------|-------------|
+| `feat` | New user-facing feature |
+| `fix` | Bug fix |
+| `refactor` | Internal change with no new feature or bug fix |
+| `perf` | Performance improvement |
+| `style` | Formatting, whitespace (no logic change) |
+| `test` | Adding or fixing tests |
+| `docs` | Documentation only |
+| `build` | Build system or dependency changes |
+| `ci` | CI/CD configuration |
+| `chore` | Maintenance tasks (no production impact) |
+| `revert` | Reverting a previous commit |
+
+## Rules
+
+- **Imperative mood**: «add», «fix», «remove» — not «added», «fixes», «removed».
+- **Subject line ≤ 72 characters**; no trailing period.
+- **Scope is optional** but helpful: module, step, or component name (`rescue`, `supplier`, `auth`, `map`…).
+- **Body** only when the "why" is not obvious. Separate from subject with a blank line.
+- **`BREAKING CHANGE:`** in the footer when the public API changes; also add `!` to the type (`feat!:`).
+
+## Good examples
+
+```text
+feat(rescue): move manager field to step 1 for all service types
+fix(map): replace PinElement with :pin-options to resolve vnode warning
+refactor(supplier): use AdvancedMarker pin-options instead of slot content
+perf(supplier-list): debounce search input to reduce API calls
+chore(deps): upgrade vue3-google-map to 0.27.1
+```
+
+## Bad examples
+
+```text
+update files          ❌ too vague
+fix bug               ❌ no context
+changes               ❌ says nothing
+Added new feature.    ❌ past tense and trailing period
+FIX: supplier map     ❌ uppercase type, missing scope
+```

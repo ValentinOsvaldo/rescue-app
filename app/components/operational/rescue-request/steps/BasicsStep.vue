@@ -1,7 +1,6 @@
 <script setup lang="ts">
 import type { RescueRequestFormState } from '~/schemas/rescue-create';
 import type { CatalogDropdownFetcher } from '~/composables/useCatalogDropdown';
-import { showsGestorInStepOne } from '~/utils/rescue-request';
 
 const state = defineModel<RescueRequestFormState>({ required: true });
 
@@ -9,8 +8,6 @@ defineProps<{
   fetchClientDropdown: CatalogDropdownFetcher;
   fetchManagerDropdown: CatalogDropdownFetcher;
 }>();
-
-const showGestor = computed(() => showsGestorInStepOne(state.value.service_type));
 </script>
 
 <template>
@@ -38,11 +35,7 @@ const showGestor = computed(() => showsGestorInStepOne(state.value.service_type)
       <UInput v-model="state.serialNumber" class="w-full" />
     </UFormField>
 
-    <UFormField
-      v-if="showGestor"
-      label="Gestor"
-      name="manager"
-    >
+    <UFormField label="Gestor" name="manager">
       <CatalogDropdownSelect
         v-model="state.manager"
         placeholder="Buscar gestor"

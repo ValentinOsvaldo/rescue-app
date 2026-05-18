@@ -6,15 +6,17 @@ alwaysApply: false
 
 # Google Maps: AdvancedMarker únicamente
 
-En este proyecto los mapas usan **vue3-google-map** con un `map-id` en `GoogleMap`. Los marcadores deben ser siempre **`AdvancedMarker`** (y `PinElement` si hace falta personalizar el pin).
+En este proyecto los mapas usan **vue3-google-map** con un `map-id` en `GoogleMap`. Los marcadores deben ser siempre **`AdvancedMarker`**.
 
 **No usar** el componente `Marker` de vue3-google-map ni `google.maps.Marker` — están deprecados.
 
-## Patrón
+**No importar `PinElement`** desde vue3-google-map: no existe como componente Vue. Para colores del pin usar la prop **`:pin-options`** (`google.maps.marker.PinElementOptions`).
+
+## Patrón con pin personalizado
 
 ```vue
 <script setup lang="ts">
-import { GoogleMap, AdvancedMarker, PinElement } from 'vue3-google-map';
+import { GoogleMap, AdvancedMarker } from 'vue3-google-map';
 </script>
 
 <template>
@@ -22,31 +24,41 @@ import { GoogleMap, AdvancedMarker, PinElement } from 'vue3-google-map';
     <AdvancedMarker
       v-if="position"
       :options="{ position, title: 'Etiqueta' }"
-    >
-      <template #content>
-        <PinElement
-          :background="'#2563eb'"
-          :border-color="'#1d4ed8'"
-          :glyph-color="'#ffffff'"
-        />
-      </template>
-    </AdvancedMarker>
+      :pin-options="{
+        background: '#2563eb',
+        borderColor: '#1d4ed8',
+        glyphColor: '#ffffff',
+      }"
+    />
   </GoogleMap>
 </template>
 ```
 
+## Contenido custom (opcional)
+
+El slot `#content` es solo para HTML/Vue propio (div, iconos), no para un componente `PinElement`:
+
+```vue
+<AdvancedMarker :options="markerOptions">
+  <template #content>
+    <div class="rounded bg-white px-2 py-1 text-xs">Etiqueta</div>
+  </template>
+</AdvancedMarker>
+```
+
 ## Referencias en el repo
 
-- `app/components/shared/MapPinPicker.vue` — pin arrastrable con `AdvancedMarker`
-- `app/components/operational/rescue-request/SupplierStepMap.vue` — varios pins con `PinElement`
+- `app/components/shared/MapPinPicker.vue` — pin por defecto con `AdvancedMarker`
+- `app/components/operational/rescue-request/SupplierStepMap.vue` — dos pins con `:pin-options` (amarillo `#fbbc04` unidad, verde proveedor)
 - `app/components/shared/Map.vue` — contenedor `GoogleMap` (slot para markers hijos)
 
 ## Prohibido
 
 ```vue
 <!-- ❌ NO -->
-import { Marker } from 'vue3-google-map';
+import { Marker, PinElement } from 'vue3-google-map';
 <Marker :options="{ position }" />
+<PinElement :background="'#2563eb'" />
 
 <!-- ❌ NO -->
 new google.maps.Marker({ map, position });
