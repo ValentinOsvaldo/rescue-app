@@ -29,6 +29,7 @@ const schema = z.object({
 type Schema = z.output<typeof schema>;
 
 const loginErrorMessage = ref<string | null>(null);
+const { fetch: fetchUserSession } = useUserSession();
 
 const { mutate, asyncStatus } = useMutation({
   mutation: ({ username, password }: { username: string; password: string }) =>
@@ -39,9 +40,10 @@ const { mutate, asyncStatus } = useMutation({
         password,
       },
     }),
-  onSuccess: () => {
+  onSuccess: async () => {
     loginErrorMessage.value = null;
-    navigateTo('/admin/dashboard');
+    await fetchUserSession();
+    await navigateTo('/admin/dashboard');
   },
   onError: (e) => {
     console.error(e);
