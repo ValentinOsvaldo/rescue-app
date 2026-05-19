@@ -36,8 +36,7 @@ watch(
       active = false;
     });
 
-    for (let i = 0; i < state.value.quote_lines.length; i++) {
-      const line = state.value.quote_lines[i];
+    for (const [i, line] of state.value.quote_lines.entries()) {
       const id = ids[i];
       if (id == null) {
         if (active) line.service_label = '';
@@ -87,7 +86,7 @@ watch(
             <td class="px-3 py-2 align-top">
               <UFormField
                 :name="`quote_lines.${index}.service_id`"
-                class="min-w-[12rem]"
+                class="min-w-48"
               >
                 <CatalogDropdownSelect
                   v-model="line.service_id"
@@ -98,11 +97,9 @@ watch(
             </td>
             <td class="px-3 py-2 align-top">
               <UFormField :name="`quote_lines.${index}.quantity`">
-                <UInput
-                  v-model.number="line.quantity"
+                <UInputNumber
+                  v-model="line.quantity"
                   type="number"
-                  min="0"
-                  step="1"
                   class="w-full"
                 />
               </UFormField>
