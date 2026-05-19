@@ -7,6 +7,7 @@ export function createEmptyQuoteLine(): RescueQuoteLine {
     service_label: '',
     quantity: 1,
     unit_cost: 0,
+    contract_item_id: null,
   };
 }
 

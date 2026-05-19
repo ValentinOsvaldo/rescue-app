@@ -10,6 +10,7 @@ import {
   getStepSchemaForIndex,
   rescueCreateFormSchema,
   rescueFormToCreateBody,
+  rescueStepQuoteWithSettingsSchema,
   type RescueCreateFormOutput,
   type RescueRequestFormState,
 } from '~/schemas/rescue-create';
@@ -199,7 +200,10 @@ function pickStepPayload(stepIndex: number) {
         manager: state.manager,
       };
     case 'quote':
-      return { quote_lines: state.quote_lines };
+      return {
+        quote_lines: state.quote_lines,
+        company_settings: state.company_settings,
+      };
     case 'location':
       return {
         location_latitude: state.location_latitude,
@@ -218,7 +222,11 @@ function pickStepPayload(stepIndex: number) {
 
 function validateCurrentStep(): boolean {
   stepError.value = null;
-  const schema = getStepSchemaForIndex(currentStep.value, state.service_type);
+  const kind = getWizardStepKind(currentStep.value, state.service_type);
+  const schema =
+    kind === 'quote'
+      ? rescueStepQuoteWithSettingsSchema
+      : getStepSchemaForIndex(currentStep.value, state.service_type);
   const result = schema.safeParse(pickStepPayload(currentStep.value));
   if (!result.success) {
     const first = result.error.issues[0];
@@ -248,7 +256,7 @@ function skipSupplier() {
 }
 
 function onSubmit(payload: FormSubmitEvent<RescueCreateFormOutput>) {
-  mutate(rescueFormToCreateBody(payload.data));
+  mutate(rescueFormToCreateBody(payload.data, state.company_settings));
 }
 
 function onFormError() {

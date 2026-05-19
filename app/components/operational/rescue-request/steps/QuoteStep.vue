@@ -1,7 +1,16 @@
 <script setup lang="ts">
 import type { CatalogDropdownFetcher } from '~/composables/useCatalogDropdown';
+import type { RescueContractItem } from '~/interfaces/rescue/company-settings';
+import type { RescueQuoteLine } from '~/interfaces/rescue';
 import type { RescueRequestFormState } from '~/schemas/rescue-create';
-import { DEFAULT_QUOTE_MARGIN_RATE } from '~/constants/quote-pricing';
+import { DEFAULT_IVA_RATE } from '~/constants/quote-pricing';
+import {
+  applyContractToLine,
+  clearContractFromLine,
+  findContractItemsForService,
+  getContractItemById,
+  isContractLine,
+} from '~/utils/rescue-company-settings';
 
 const state = defineModel<RescueRequestFormState>({ required: true });
 
@@ -9,11 +18,106 @@ defineProps<{
   fetchServiceDropdown: CatalogDropdownFetcher;
 }>();
 
-const marginPercentLabel = computed(
-  () => `${Math.round(DEFAULT_QUOTE_MARGIN_RATE * 100)}%`,
+const toast = useToast();
+const clientId = computed(() => state.value.client);
+const { settings, pending, error } = useRescueCompanySettings(clientId);
+
+const ivaPercentLabel = computed(() => formatIvaPercent(DEFAULT_IVA_RATE));
+
+watch(
+  settings,
+  (value) => {
+    state.value.company_settings = value;
+  },
+  { immediate: true },
 );
 
-const summary = computed(() => computeQuoteSummary(state.value.quote_lines));
+watch(error, (err) => {
+  if (err == null) return;
+  toast.add({
+    title: 'No se pudieron cargar los ajustes del cliente',
+    description: err.message,
+    color: 'error',
+  });
+});
+
+watch(
+  () => state.value.client,
+  (newId, oldId) => {
+    if (oldId != null && newId !== oldId) {
+      for (const line of state.value.quote_lines) {
+        clearContractFromLine(line);
+      }
+    }
+  },
+);
+
+const pricing = computed(() =>
+  computeQuotePricing(state.value.quote_lines, settings.value),
+);
+
+function lineRow(line: RescueQuoteLine) {
+  return pricing.value.lines.find((row) => row.line.id === line.id);
+}
+
+function contractVariants(line: RescueQuoteLine): RescueContractItem[] {
+  return findContractItemsForService(settings.value, line.service_id);
+}
+
+function needsContractVariant(line: RescueQuoteLine): boolean {
+  return contractVariants(line).length > 1 && line.contract_item_id == null;
+}
+
+function contractVariantOptions(line: RescueQuoteLine) {
+  return contractVariants(line).map((item) => ({
+    value: item.id,
+    label: formatContractVariantLabel(item),
+  }));
+}
+
+function formatContractVariantLabel(item: RescueContractItem): string {
+  const price = formatQuoteMoney(item.price);
+  const notes = item.notes.trim();
+  return notes ? `${price} — ${notes}` : price;
+}
+
+function syncLineContract(line: RescueQuoteLine) {
+  if (line.service_id == null) {
+    clearContractFromLine(line);
+    return;
+  }
+
+  const variants = contractVariants(line);
+  if (variants.length === 0) {
+    if (line.contract_item_id != null) {
+      clearContractFromLine(line);
+    }
+    return;
+  }
+
+  if (variants.length === 1) {
+    applyContractToLine(line, variants[0]!);
+    return;
+  }
+
+  if (line.contract_item_id != null) {
+    const selected = getContractItemById(settings.value, line.contract_item_id);
+    if (selected && selected.service_id === line.service_id) {
+      applyContractToLine(line, selected);
+    } else {
+      line.contract_item_id = null;
+    }
+  }
+}
+
+function onContractVariantChange(line: RescueQuoteLine, itemId: number | null) {
+  if (itemId == null) {
+    line.contract_item_id = null;
+    return;
+  }
+  const item = getContractItemById(settings.value, itemId);
+  if (item) applyContractToLine(line, item);
+}
 
 function addLine() {
   state.value.quote_lines.push(createEmptyQuoteLine());
@@ -24,9 +128,20 @@ function removeLine(id: string) {
   state.value.quote_lines = state.value.quote_lines.filter((row) => row.id !== id);
 }
 
-function lineTotals(line: (typeof state.value.quote_lines)[number]) {
-  return computeQuoteLineTotals(line);
-}
+watch(
+  () =>
+    state.value.quote_lines.map((line) => ({
+      id: line.id,
+      service_id: line.service_id,
+      contract_item_id: line.contract_item_id,
+    })),
+  () => {
+    for (const line of state.value.quote_lines) {
+      syncLineContract(line);
+    }
+  },
+  { deep: true },
+);
 
 watch(
   () => state.value.quote_lines.map((l) => l.service_id),
@@ -42,6 +157,8 @@ watch(
         if (active) line.service_label = '';
         continue;
       }
+      if (isContractLine(line)) continue;
+
       try {
         const raw = await $fetch<Record<string, unknown>>(
           `/api/catalogue/service/detail/${id}/`,
@@ -60,14 +177,23 @@ watch(
 </script>
 
 <template>
-  <div class="space-y-4">
+  <div
+    v-if="pending && settings == null"
+    class="flex items-center gap-2 text-sm text-muted"
+  >
+    <UIcon name="i-lucide-loader-circle" class="size-4 animate-spin" />
+    Cargando ajustes del cliente…
+  </div>
+
+  <div v-else class="space-y-4">
     <p class="text-sm text-muted">
-      Agrega los servicios de la cotización. El total por línea incluye un margen
-      de {{ marginPercentLabel }} y se redondea al diez superior (ej. 272 → 280).
+      Agrega los servicios de la cotización. Se aplican comisiones y multiplicador
+      del cliente; las líneas con convenio usan precio fijo. IVA provisional
+      {{ ivaPercentLabel }} sobre el total antes de impuestos.
     </p>
 
     <div class="overflow-x-auto rounded-lg border border-default">
-      <table class="w-full min-w-[640px] text-sm">
+      <table class="w-full min-w-[720px] text-sm">
         <thead>
           <tr class="border-b border-default bg-elevated/50 text-left text-xs text-muted">
             <th class="px-3 py-2 font-medium">Servicio</th>
@@ -84,23 +210,53 @@ watch(
             class="border-b border-default last:border-b-0"
           >
             <td class="px-3 py-2 align-top">
-              <UFormField
-                :name="`quote_lines.${index}.service_id`"
-                class="min-w-48"
-              >
-                <CatalogDropdownSelect
-                  v-model="line.service_id"
-                  placeholder="Buscar servicio"
-                  :fetcher="fetchServiceDropdown"
+              <div class="space-y-2">
+                <UFormField
+                  :name="`quote_lines.${index}.service_id`"
+                  class="min-w-48"
+                >
+                  <CatalogDropdownSelect
+                    v-model="line.service_id"
+                    placeholder="Buscar servicio"
+                    :fetcher="fetchServiceDropdown"
+                  />
+                </UFormField>
+                <UBadge
+                  v-if="isContractLine(line)"
+                  color="primary"
+                  variant="subtle"
+                  size="sm"
+                  label="Convenio"
                 />
-              </UFormField>
+                <UFormField
+                  v-if="needsContractVariant(line)"
+                  :name="`quote_lines.${index}.contract_item_id`"
+                  label="Variante de convenio"
+                >
+                  <USelectMenu
+                    :model-value="line.contract_item_id ?? undefined"
+                    :items="contractVariantOptions(line)"
+                    value-key="value"
+                    placeholder="Selecciona precio"
+                    class="w-full"
+                    @update:model-value="
+                      onContractVariantChange(
+                        line,
+                        ($event as number | undefined) ?? null,
+                      )
+                    "
+                  />
+                </UFormField>
+              </div>
             </td>
             <td class="px-3 py-2 align-top">
               <UFormField :name="`quote_lines.${index}.quantity`">
                 <UInputNumber
                   v-model="line.quantity"
-                  type="number"
                   class="w-full"
+                  :increment="false"
+                  :decrement="false"
+                  :min="1"
                 />
               </UFormField>
             </td>
@@ -112,19 +268,13 @@ watch(
                   min="0"
                   step="0.01"
                   class="w-full"
+                  :disabled="isContractLine(line)"
                 />
               </UFormField>
             </td>
             <td class="px-3 py-2 align-top text-right">
               <span class="font-medium tabular-nums">
-                {{ formatQuoteMoney(lineTotals(line).lineTotal) }}
-              </span>
-              <span
-                v-if="lineTotals(line).roundingAdjustment > 0.001"
-                class="mt-0.5 block text-xs text-muted"
-              >
-                +{{ formatQuoteMoney(lineTotals(line).roundingAdjustment) }}
-                redondeo
+                {{ formatQuoteMoney(lineRow(line)?.lineTotal ?? 0) }}
               </span>
             </td>
             <td class="px-2 py-2 align-top">
@@ -157,22 +307,40 @@ watch(
       <div class="flex justify-between gap-4">
         <span class="text-muted">Subtotal costo (empresa)</span>
         <span class="font-medium tabular-nums">
-          {{ formatQuoteMoney(summary.costSubtotal) }}
+          {{ formatQuoteMoney(pricing.costSubtotal) }}
+        </span>
+      </div>
+      <div class="flex justify-between gap-4">
+        <span class="text-muted">Subtotal cotizado (líneas)</span>
+        <span class="tabular-nums">
+          {{ formatQuoteMoney(pricing.subtotalLines) }}
         </span>
       </div>
       <div
-        v-if="summary.roundingAdjustment > 0.001"
+        v-if="pricing.commissionValueAdd > 0.001"
         class="flex justify-between gap-4"
       >
-        <span class="text-muted">Ajuste por redondeo</span>
+        <span class="text-muted">Comisión adicional</span>
         <span class="tabular-nums text-muted">
-          +{{ formatQuoteMoney(summary.roundingAdjustment) }}
+          +{{ formatQuoteMoney(pricing.commissionValueAdd) }}
+        </span>
+      </div>
+      <div class="flex justify-between gap-4">
+        <span class="text-muted">Subtotal antes de IVA</span>
+        <span class="tabular-nums">
+          {{ formatQuoteMoney(pricing.totalBeforeTax) }}
+        </span>
+      </div>
+      <div class="flex justify-between gap-4">
+        <span class="text-muted">IVA ({{ ivaPercentLabel }})</span>
+        <span class="tabular-nums text-muted">
+          +{{ formatQuoteMoney(pricing.ivaAmount) }}
         </span>
       </div>
       <div class="flex justify-between gap-4 border-t border-default pt-2">
         <span class="font-medium">Total cotizado</span>
         <span class="text-base font-semibold tabular-nums text-primary">
-          {{ formatQuoteMoney(summary.totalCharged) }}
+          {{ formatQuoteMoney(pricing.totalCharged) }}
         </span>
       </div>
     </UCard>

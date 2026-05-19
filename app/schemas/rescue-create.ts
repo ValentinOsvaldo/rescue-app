@@ -4,6 +4,8 @@ import type {
   RescueQuoteLine,
   RescueServiceType,
 } from '~/interfaces/rescue';
+import type { RescueCompanySettings } from '~/interfaces/rescue/company-settings';
+import { getContractItemById } from '~/utils/rescue-company-settings';
 const RESCUE_SERVICE_TYPES = [
   'rescue',
   'loan',
@@ -134,7 +136,54 @@ const rescueQuoteLineSchema = z.object({
   service_label: z.string(),
   quantity: z.number(),
   unit_cost: z.number(),
+  contract_item_id: z.number().int().positive().nullable(),
 });
+
+function validateQuoteLinesWithSettings(
+  quoteLines: z.infer<typeof rescueQuoteLineSchema>[],
+  settings: RescueCompanySettings | null | undefined,
+  ctx: z.RefinementCtx,
+) {
+  quoteLines.forEach((line, index) => {
+    if (line.service_id == null) {
+      ctx.addIssue({
+        code: 'custom',
+        message: 'Selecciona un servicio',
+        path: ['quote_lines', index, 'service_id'],
+      });
+    }
+    if (!Number.isFinite(line.quantity) || line.quantity <= 0) {
+      ctx.addIssue({
+        code: 'custom',
+        message: 'La cantidad debe ser mayor a 0',
+        path: ['quote_lines', index, 'quantity'],
+      });
+    }
+    if (!Number.isFinite(line.unit_cost) || line.unit_cost < 0) {
+      ctx.addIssue({
+        code: 'custom',
+        message: 'El pago unitario no puede ser negativo',
+        path: ['quote_lines', index, 'unit_cost'],
+      });
+    }
+    if (line.contract_item_id != null) {
+      const item = getContractItemById(settings, line.contract_item_id);
+      if (item == null) {
+        ctx.addIssue({
+          code: 'custom',
+          message: 'La variante de convenio ya no está disponible',
+          path: ['quote_lines', index, 'contract_item_id'],
+        });
+      } else if (line.service_id != null && item.service_id !== line.service_id) {
+        ctx.addIssue({
+          code: 'custom',
+          message: 'El servicio no coincide con el convenio seleccionado',
+          path: ['quote_lines', index, 'service_id'],
+        });
+      }
+    }
+  });
+}
 
 export const rescueStepQuoteSchema = z
   .object({
@@ -149,29 +198,43 @@ export const rescueStepQuoteSchema = z
       });
       return;
     }
-    data.quote_lines.forEach((line, index) => {
-      if (line.service_id == null) {
-        ctx.addIssue({
-          code: 'custom',
-          message: 'Selecciona un servicio',
-          path: ['quote_lines', index, 'service_id'],
-        });
-      }
-      if (!Number.isFinite(line.quantity) || line.quantity <= 0) {
-        ctx.addIssue({
-          code: 'custom',
-          message: 'La cantidad debe ser mayor a 0',
-          path: ['quote_lines', index, 'quantity'],
-        });
-      }
-      if (!Number.isFinite(line.unit_cost) || line.unit_cost < 0) {
-        ctx.addIssue({
-          code: 'custom',
-          message: 'El pago unitario no puede ser negativo',
-          path: ['quote_lines', index, 'unit_cost'],
-        });
-      }
+    validateQuoteLinesWithSettings(data.quote_lines, undefined, ctx);
+  });
+
+export const rescueStepQuoteWithSettingsSchema = z
+  .object({
+    quote_lines: z.array(rescueQuoteLineSchema),
+    company_settings: z.custom<RescueCompanySettings | null>(),
+  })
+  .superRefine((data, ctx) => {
+    if (data.quote_lines.length === 0) {
+      ctx.addIssue({
+        code: 'custom',
+        message: 'Agrega al menos un servicio',
+        path: ['quote_lines'],
+      });
+      return;
+    }
+    validateQuoteLinesWithSettings(
+      data.quote_lines,
+      data.company_settings,
+      ctx,
+    );
+    const needsVariant = data.quote_lines.some((line) => {
+      if (line.service_id == null) return false;
+      const items =
+        data.company_settings?.contract?.items.filter(
+          (it) => it.service_id === line.service_id,
+        ) ?? [];
+      return items.length > 1 && line.contract_item_id == null;
     });
+    if (needsVariant) {
+      ctx.addIssue({
+        code: 'custom',
+        message: 'Selecciona la variante de convenio para cada servicio con múltiples precios',
+        path: ['quote_lines'],
+      });
+    }
   });
 
 export const rescueStepSummarySchema = z.object({
@@ -209,29 +272,7 @@ export const rescueCreateFormSchema = z
         path: ['quote_lines'],
       });
     } else {
-      data.quote_lines.forEach((line, index) => {
-        if (line.service_id == null) {
-          ctx.addIssue({
-            code: 'custom',
-            message: 'Selecciona un servicio',
-            path: ['quote_lines', index, 'service_id'],
-          });
-        }
-        if (!Number.isFinite(line.quantity) || line.quantity <= 0) {
-          ctx.addIssue({
-            code: 'custom',
-            message: 'La cantidad debe ser mayor a 0',
-            path: ['quote_lines', index, 'quantity'],
-          });
-        }
-        if (!Number.isFinite(line.unit_cost) || line.unit_cost < 0) {
-          ctx.addIssue({
-            code: 'custom',
-            message: 'El pago unitario no puede ser negativo',
-            path: ['quote_lines', index, 'unit_cost'],
-          });
-        }
-      });
+      validateQuoteLinesWithSettings(data.quote_lines, undefined, ctx);
     }
 
     if (data.service_type !== 'rescue') {
@@ -284,6 +325,7 @@ export type RescueRequestFormState = {
   internal_notes: string;
   clientLabel: string;
   quote_lines: RescueQuoteLine[];
+  company_settings: RescueCompanySettings | null;
 };
 
 export function emptyRescueRequestState(): RescueRequestFormState {
@@ -303,6 +345,7 @@ export function emptyRescueRequestState(): RescueRequestFormState {
     internal_notes: '',
     clientLabel: '',
     quote_lines: emptyQuoteLines(),
+    company_settings: null,
   };
 }
 
@@ -333,9 +376,19 @@ export function getStepSchemaForIndex(
 
 export function rescueFormToCreateBody(
   data: RescueCreateFormOutput,
+  companySettings?: RescueCompanySettings | null,
 ): RescueCreateBody {
   const serial = String(data.serialNumber ?? '').trim();
   const quoteLines = (data.quote_lines ?? []) as RescueQuoteLine[];
+  const settings =
+    companySettings
+    ?? ('company_settings' in data
+      ? (data as RescueCreateFormOutput & {
+          company_settings?: RescueCompanySettings | null;
+        }).company_settings
+      : null);
+
+  const pricing = computeQuotePricing(quoteLines, settings);
 
   return {
     service_type: data.service_type,
@@ -352,14 +405,14 @@ export function rescueFormToCreateBody(
     quote_lines: quoteLines
       .filter((line) => line.service_id != null)
       .map((line) => {
-        const totals = computeQuoteLineTotals(line);
+        const row = pricing.lines.find((r) => r.line.id === line.id);
         return {
           service_id: line.service_id as number,
           service_label: line.service_label,
           quantity: line.quantity,
           unit_cost: line.unit_cost,
-          cost_subtotal: totals.costSubtotal,
-          line_total: totals.lineTotal,
+          cost_subtotal: row?.costSubtotal ?? 0,
+          line_total: row?.lineTotal ?? 0,
         };
       }),
   };

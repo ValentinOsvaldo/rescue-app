@@ -31,6 +31,8 @@ export interface RescueQuoteLine {
   service_label: string;
   quantity: number;
   unit_cost: number;
+  /** Set when the line uses a contract/convenio item variant. */
+  contract_item_id: number | null;
 }
 
 export interface RescueQuoteLinePayload {

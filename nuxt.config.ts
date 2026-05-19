@@ -18,6 +18,7 @@ export default defineNuxtConfig({
     '@pinia/nuxt',
     'nuxt-auth-utils',
     '@pinia/colada-nuxt',
+    '@nuxt/test-utils/module',
   ],
 
   css: ['~/assets/css/main.css'],
@@ -54,6 +55,12 @@ export default defineNuxtConfig({
   vite: {
     optimizeDeps: {
       include: ['zod', 'vue3-google-map'],
+    },
+  },
+
+  typescript: {
+    tsConfig: {
+      include: ['../test/unit/**/*'],
     },
   },
 });

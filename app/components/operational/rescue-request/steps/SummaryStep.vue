@@ -1,13 +1,16 @@
 <script setup lang="ts">
 import type { RescueRequestFormState } from '~/schemas/rescue-create';
+import { DEFAULT_IVA_RATE } from '~/constants/quote-pricing';
 import { RESCUE_SERVICE_TYPE_OPTIONS } from '~/constants/rescue-select-options';
 import { parseRescueCoord } from '~/schemas/rescue-create';
 
 const state = defineModel<RescueRequestFormState>({ required: true });
 
-const quoteSummary = computed(() =>
-  computeQuoteSummary(state.value.quote_lines),
+const quotePricing = computed(() =>
+  computeQuotePricing(state.value.quote_lines, state.value.company_settings),
 );
+
+const ivaPercentLabel = computed(() => formatIvaPercent(DEFAULT_IVA_RATE));
 
 const serviceTypeOption = computed(() =>
   RESCUE_SERVICE_TYPE_OPTIONS.find((o) => o.value === state.value.service_type),
@@ -91,7 +94,7 @@ const locationCoordsLabel = computed(() => {
     </UCard>
 
     <UCard
-      v-if="quoteSummary.lines.length > 0"
+      v-if="quotePricing.lines.length > 0"
       variant="subtle"
       :ui="{ body: 'space-y-3 text-sm' }"
     >
@@ -100,7 +103,7 @@ const locationCoordsLabel = computed(() => {
       </h3>
       <ul class="divide-y divide-default">
         <li
-          v-for="row in quoteSummary.lines"
+          v-for="row in quotePricing.lines"
           :key="row.line.id"
           class="flex flex-wrap items-baseline justify-between gap-2 py-2 first:pt-0 last:pb-0"
         >
@@ -109,16 +112,45 @@ const locationCoordsLabel = computed(() => {
             <span class="font-normal text-muted">
               × {{ row.line.quantity }}
             </span>
+            <UBadge
+              v-if="row.isContractLine"
+              class="ml-1"
+              color="primary"
+              variant="subtle"
+              size="xs"
+              label="Convenio"
+            />
           </span>
           <span class="tabular-nums">
             {{ formatQuoteMoney(row.lineTotal) }}
           </span>
         </li>
       </ul>
+      <div
+        v-if="quotePricing.commissionValueAdd > 0.001"
+        class="flex justify-between gap-4 text-muted"
+      >
+        <span>Comisión adicional</span>
+        <span class="tabular-nums">
+          +{{ formatQuoteMoney(quotePricing.commissionValueAdd) }}
+        </span>
+      </div>
+      <div class="flex justify-between gap-4 text-muted">
+        <span>Subtotal antes de IVA</span>
+        <span class="tabular-nums">
+          {{ formatQuoteMoney(quotePricing.totalBeforeTax) }}
+        </span>
+      </div>
+      <div class="flex justify-between gap-4 text-muted">
+        <span>IVA ({{ ivaPercentLabel }})</span>
+        <span class="tabular-nums">
+          +{{ formatQuoteMoney(quotePricing.ivaAmount) }}
+        </span>
+      </div>
       <div class="flex justify-between gap-4 border-t border-default pt-2 font-medium">
         <span>Total cotizado</span>
         <span class="tabular-nums text-primary">
-          {{ formatQuoteMoney(quoteSummary.totalCharged) }}
+          {{ formatQuoteMoney(quotePricing.totalCharged) }}
         </span>
       </div>
     </UCard>

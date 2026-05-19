@@ -1,2 +1,2 @@
-/** Provisional until business rules per client/contract exist. */
-export const DEFAULT_QUOTE_MARGIN_RATE = 0.15;
+/** Provisional IVA rate until backend provides tax rules per client. */
+export const DEFAULT_IVA_RATE = 0.16;

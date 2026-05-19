@@ -7,7 +7,10 @@
     "dev": "nuxt dev",
     "generate": "nuxt generate",
     "preview": "nuxt preview",
-    "postinstall": "nuxt prepare"
+    "postinstall": "nuxt prepare",
+    "test": "vitest run",
+    "test:unit": "vitest run --project unit",
+    "test:nuxt": "vitest run --project nuxt"
   },
   "dependencies": {
     "@nuxt/a11y": "1.0.0-alpha.1",
@@ -33,6 +36,11 @@
   },
   "devDependencies": {
     "@iconify-json/lucide": "^1.2.105",
-    "@types/google.maps": "^3.64.0"
+    "@nuxt/test-utils": "^4.0.3",
+    "@types/google.maps": "^3.64.0",
+    "@vue/test-utils": "^2.4.10",
+    "happy-dom": "^20.9.0",
+    "playwright-core": "^1.60.0",
+    "vitest": "^3.2.4"
   }
 }
