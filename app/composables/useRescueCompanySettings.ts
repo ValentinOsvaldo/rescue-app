@@ -17,7 +17,7 @@ export function useRescueCompanySettings(
 
     try {
       const raw = await $fetch<Record<string, unknown>>(
-        `/api/rescue/company/settings/${id}/`,
+        `/api/rescue/client/settings/${id}/`,
       );
       if (currentRequest !== requestId) return;
       settings.value = mapRescueCompanySettings(raw);

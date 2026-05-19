@@ -24,21 +24,22 @@ export function mapRescueCompanySettings(
   if (contractRaw && typeof contractRaw === 'object') {
     const c = contractRaw as Record<string, unknown>;
     const itemsRaw = Array.isArray(c.items) ? c.items : [];
+    const mappedItems = itemsRaw.map((item) => {
+      const it = item as Record<string, unknown>;
+      return {
+        id: toNumber(it.id),
+        service_id: toNumber(it.service_id),
+        service_name: String(it.service_name ?? ''),
+        price: toNumber(it.price),
+        price_multiplier: toNumber(it.price_multiplier, 1),
+        percentaje: toNumber(it.percentaje),
+        notes: String(it.notes ?? ''),
+      };
+    });
     contract = {
       id: toNumber(c.id),
       notes: String(c.notes ?? ''),
-      items: itemsRaw.map((item) => {
-        const it = item as Record<string, unknown>;
-        return {
-          id: toNumber(it.id),
-          service_id: toNumber(it.service_id),
-          service_name: String(it.service_name ?? ''),
-          price: toNumber(it.price),
-          price_multiplier: toNumber(it.price_multiplier, 1),
-          percentaje: toNumber(it.percentaje),
-          notes: String(it.notes ?? ''),
-        };
-      }),
+      items: dedupeContractItemsByService(mappedItems),
     };
   }
 
@@ -53,12 +54,26 @@ export function mapRescueCompanySettings(
   };
 }
 
-export function findContractItemsForService(
+/** Keeps the first contract item per service_id (duplicates are ignored). */
+export function dedupeContractItemsByService(
+  items: RescueContractItem[],
+): RescueContractItem[] {
+  const seen = new Set<number>();
+  const result: RescueContractItem[] = [];
+  for (const item of items) {
+    if (seen.has(item.service_id)) continue;
+    seen.add(item.service_id);
+    result.push(item);
+  }
+  return result;
+}
+
+export function findContractItemForService(
   settings: RescueCompanySettings | null | undefined,
   serviceId: number | null,
-): RescueContractItem[] {
-  if (settings?.contract == null || serviceId == null) return [];
-  return settings.contract.items.filter((item) => item.service_id === serviceId);
+): RescueContractItem | undefined {
+  if (settings?.contract == null || serviceId == null) return undefined;
+  return settings.contract.items.find((item) => item.service_id === serviceId);
 }
 
 export function getContractItemById(

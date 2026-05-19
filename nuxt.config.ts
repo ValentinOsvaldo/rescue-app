@@ -54,7 +54,7 @@ export default defineNuxtConfig({
 
   vite: {
     optimizeDeps: {
-      include: ['zod', 'vue3-google-map'],
+      include: ['zod', 'vue3-google-map', '@vueuse/core'],
     },
   },
 

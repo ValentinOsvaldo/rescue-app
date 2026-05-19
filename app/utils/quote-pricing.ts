@@ -1,4 +1,4 @@
-import { DEFAULT_IVA_RATE } from '~/constants/quote-pricing';
+import { DEFAULT_IVA_RATE, QUOTE_MONEY_DECIMALS } from '~/constants/quote-pricing';
 import type { RescueCompanySettings } from '~/interfaces/rescue/company-settings';
 import { isContractLine } from '~/utils/rescue-company-settings';
 import type { RescueQuoteLine } from '~/interfaces/rescue';
@@ -20,6 +20,7 @@ export interface QuoteLinePricing {
 export interface QuotePricingSummary {
   costSubtotal: number;
   subtotalLines: number;
+  profit: number;
   commissionValueAdd: number;
   totalBeforeTax: number;
   ivaAmount: number;
@@ -34,21 +35,70 @@ const DEFAULT_COMMISSIONS = {
   price_multiplier: 1,
 };
 
+const MONEY_FACTOR = 10 ** QUOTE_MONEY_DECIMALS;
+
+export function roundQuoteMoney(value: number): number {
+  if (!Number.isFinite(value)) return 0;
+  return Math.round((value + Number.EPSILON) * MONEY_FACTOR) / MONEY_FACTOR;
+}
+
 function lineBaseFinal(line: Pick<RescueQuoteLine, 'quantity' | 'unit_cost'>): number {
   const qty = Number.isFinite(line.quantity) ? line.quantity : 0;
   const unit = Number.isFinite(line.unit_cost) ? line.unit_cost : 0;
   return qty * unit;
 }
 
+function computeProfit(subtotalLines: number, costSubtotal: number): number {
+  return roundQuoteMoney(subtotalLines - costSubtotal);
+}
+
 function computeCommissionValueAdd(
-  subtotalLines: number,
+  profit: number,
   settings: RescueCompanySettings | null | undefined,
 ): number {
   const commissions = settings?.commissions ?? DEFAULT_COMMISSIONS;
   if (commissions.commission_type === 'FIXED') {
-    return commissions.commission_value;
+    return roundQuoteMoney(commissions.commission_value);
   }
-  return subtotalLines * (commissions.commission_value / 100);
+  if (profit <= 0) return 0;
+  return roundQuoteMoney(profit * (commissions.commission_value / 100));
+}
+
+function distributeRoundedFixedShares(
+  standardIndices: number[],
+  rowDrafts: Array<{ afterMultiplier: number }>,
+  standardAfterMultSum: number,
+  commissionFixedPool: number,
+): Map<number, number> {
+  const shares = new Map<number, number>();
+  if (standardIndices.length === 0) return shares;
+
+  const poolRounded = roundQuoteMoney(commissionFixedPool);
+
+  for (const index of standardIndices) {
+    const draft = rowDrafts[index]!;
+    const raw =
+      standardAfterMultSum > 0
+        ? commissionFixedPool * (draft.afterMultiplier / standardAfterMultSum)
+        : 0;
+    shares.set(index, roundQuoteMoney(raw));
+  }
+
+  const allocated = standardIndices.reduce(
+    (sum, index) => sum + (shares.get(index) ?? 0),
+    0,
+  );
+  const remainder = roundQuoteMoney(poolRounded - allocated);
+
+  if (remainder !== 0) {
+    const lastStandardIndex = standardIndices[standardIndices.length - 1]!;
+    shares.set(
+      lastStandardIndex,
+      roundQuoteMoney((shares.get(lastStandardIndex) ?? 0) + remainder),
+    );
+  }
+
+  return shares;
 }
 
 export function computeQuotePricing(
@@ -102,45 +152,55 @@ export function computeQuotePricing(
     0,
   );
 
-  const pricingLines: QuoteLinePricing[] = rowDrafts.map((draft) => {
+  const fixedShareByIndex = distributeRoundedFixedShares(
+    standardIndices,
+    rowDrafts,
+    standardAfterMultSum,
+    commissionFixedPool,
+  );
+
+  const pricingLines: QuoteLinePricing[] = rowDrafts.map((draft, index) => {
     if (draft.isContractLine) {
+      const costSubtotal = roundQuoteMoney(draft.costSubtotal);
       return {
         line: draft.line,
         isContractLine: true,
-        costSubtotal: draft.costSubtotal,
-        baseFinal: draft.baseFinal,
-        afterMultiplier: draft.afterMultiplier,
+        costSubtotal,
+        baseFinal: costSubtotal,
+        afterMultiplier: costSubtotal,
         fixedShare: 0,
-        lineTotal: draft.baseFinal,
+        lineTotal: costSubtotal,
       };
     }
 
-    const fixedShare =
-      standardAfterMultSum > 0
-        ? commissionFixedPool * (draft.afterMultiplier / standardAfterMultSum)
-        : 0;
+    const costSubtotal = roundQuoteMoney(draft.costSubtotal);
+    const baseFinal = roundQuoteMoney(draft.baseFinal);
+    const afterMultiplier = roundQuoteMoney(draft.afterMultiplier);
+    const fixedShare = fixedShareByIndex.get(index) ?? 0;
 
     return {
       line: draft.line,
       isContractLine: false,
-      costSubtotal: draft.costSubtotal,
-      baseFinal: draft.baseFinal,
-      afterMultiplier: draft.afterMultiplier,
+      costSubtotal,
+      baseFinal,
+      afterMultiplier,
       fixedShare,
-      lineTotal: draft.afterMultiplier + fixedShare,
+      lineTotal: roundQuoteMoney(afterMultiplier + fixedShare),
     };
   });
 
   const costSubtotal = pricingLines.reduce((sum, row) => sum + row.costSubtotal, 0);
   const subtotalLines = pricingLines.reduce((sum, row) => sum + row.lineTotal, 0);
-  const commissionValueAdd = computeCommissionValueAdd(subtotalLines, settings);
-  const totalBeforeTax = subtotalLines + commissionValueAdd;
-  const ivaAmount = totalBeforeTax * ivaRate;
-  const totalCharged = totalBeforeTax + ivaAmount;
+  const profit = computeProfit(subtotalLines, costSubtotal);
+  const commissionValueAdd = computeCommissionValueAdd(profit, settings);
+  const totalBeforeTax = roundQuoteMoney(subtotalLines + commissionValueAdd);
+  const ivaAmount = roundQuoteMoney(totalBeforeTax * ivaRate);
+  const totalCharged = roundQuoteMoney(totalBeforeTax + ivaAmount);
 
   return {
     costSubtotal,
     subtotalLines,
+    profit,
     commissionValueAdd,
     totalBeforeTax,
     ivaAmount,
@@ -187,6 +247,7 @@ export function computeQuoteSummary(
     costSubtotal: pricing.costSubtotal,
     totalCharged: pricing.totalCharged,
     subtotalLines: pricing.subtotalLines,
+    profit: pricing.profit,
     commissionValueAdd: pricing.commissionValueAdd,
     totalBeforeTax: pricing.totalBeforeTax,
     ivaAmount: pricing.ivaAmount,
@@ -203,8 +264,9 @@ export function formatQuoteMoney(value: number): string {
   return new Intl.NumberFormat('es-MX', {
     style: 'currency',
     currency: 'MXN',
-    maximumFractionDigits: 2,
-  }).format(value);
+    minimumFractionDigits: QUOTE_MONEY_DECIMALS,
+    maximumFractionDigits: QUOTE_MONEY_DECIMALS,
+  }).format(roundQuoteMoney(value));
 }
 
 export function formatIvaPercent(rate: number): string {

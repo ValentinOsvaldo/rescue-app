@@ -1,14 +1,12 @@
 <script setup lang="ts">
 import type { CatalogDropdownFetcher } from '~/composables/useCatalogDropdown';
-import type { RescueContractItem } from '~/interfaces/rescue/company-settings';
 import type { RescueQuoteLine } from '~/interfaces/rescue';
 import type { RescueRequestFormState } from '~/schemas/rescue-create';
 import { DEFAULT_IVA_RATE } from '~/constants/quote-pricing';
 import {
   applyContractToLine,
   clearContractFromLine,
-  findContractItemsForService,
-  getContractItemById,
+  findContractItemForService,
   isContractLine,
 } from '~/utils/rescue-company-settings';
 
@@ -60,63 +58,21 @@ function lineRow(line: RescueQuoteLine) {
   return pricing.value.lines.find((row) => row.line.id === line.id);
 }
 
-function contractVariants(line: RescueQuoteLine): RescueContractItem[] {
-  return findContractItemsForService(settings.value, line.service_id);
-}
-
-function needsContractVariant(line: RescueQuoteLine): boolean {
-  return contractVariants(line).length > 1 && line.contract_item_id == null;
-}
-
-function contractVariantOptions(line: RescueQuoteLine) {
-  return contractVariants(line).map((item) => ({
-    value: item.id,
-    label: formatContractVariantLabel(item),
-  }));
-}
-
-function formatContractVariantLabel(item: RescueContractItem): string {
-  const price = formatQuoteMoney(item.price);
-  const notes = item.notes.trim();
-  return notes ? `${price} — ${notes}` : price;
-}
-
 function syncLineContract(line: RescueQuoteLine) {
   if (line.service_id == null) {
     clearContractFromLine(line);
     return;
   }
 
-  const variants = contractVariants(line);
-  if (variants.length === 0) {
-    if (line.contract_item_id != null) {
-      clearContractFromLine(line);
-    }
-    return;
-  }
-
-  if (variants.length === 1) {
-    applyContractToLine(line, variants[0]!);
+  const item = findContractItemForService(settings.value, line.service_id);
+  if (item) {
+    applyContractToLine(line, item);
     return;
   }
 
   if (line.contract_item_id != null) {
-    const selected = getContractItemById(settings.value, line.contract_item_id);
-    if (selected && selected.service_id === line.service_id) {
-      applyContractToLine(line, selected);
-    } else {
-      line.contract_item_id = null;
-    }
+    clearContractFromLine(line);
   }
-}
-
-function onContractVariantChange(line: RescueQuoteLine, itemId: number | null) {
-  if (itemId == null) {
-    line.contract_item_id = null;
-    return;
-  }
-  const item = getContractItemById(settings.value, itemId);
-  if (item) applyContractToLine(line, item);
 }
 
 function addLine() {
@@ -129,12 +85,7 @@ function removeLine(id: string) {
 }
 
 watch(
-  () =>
-    state.value.quote_lines.map((line) => ({
-      id: line.id,
-      service_id: line.service_id,
-      contract_item_id: line.contract_item_id,
-    })),
+  () => state.value.quote_lines.map((line) => line.service_id),
   () => {
     for (const line of state.value.quote_lines) {
       syncLineContract(line);
@@ -187,19 +138,20 @@ watch(
 
   <div v-else class="space-y-4">
     <p class="text-sm text-muted">
-      Agrega los servicios de la cotización. Se aplican comisiones y multiplicador
-      del cliente; las líneas con convenio usan precio fijo. IVA provisional
+      Agrega los servicios de la cotización. Por ítem se aplican multiplicador y
+      comisión fija; la comisión del vendedor se calcula sobre la ganancia. Las
+      líneas con convenio usan precio fijo. IVA provisional
       {{ ivaPercentLabel }} sobre el total antes de impuestos.
     </p>
 
     <div class="overflow-x-auto rounded-lg border border-default">
-      <table class="w-full min-w-[720px] text-sm">
+      <table class="w-full min-w-[900px] text-sm">
         <thead>
           <tr class="border-b border-default bg-elevated/50 text-left text-xs text-muted">
             <th class="px-3 py-2 font-medium">Servicio</th>
             <th class="w-24 px-3 py-2 font-medium">Cantidad</th>
             <th class="w-36 px-3 py-2 font-medium">Pago unitario</th>
-            <th class="w-32 px-3 py-2 font-medium text-right">Total línea</th>
+            <th class="w-36 px-3 py-2 font-medium text-right">Total cliente</th>
             <th class="w-10 px-2 py-2" />
           </tr>
         </thead>
@@ -228,25 +180,6 @@ watch(
                   size="sm"
                   label="Convenio"
                 />
-                <UFormField
-                  v-if="needsContractVariant(line)"
-                  :name="`quote_lines.${index}.contract_item_id`"
-                  label="Variante de convenio"
-                >
-                  <USelectMenu
-                    :model-value="line.contract_item_id ?? undefined"
-                    :items="contractVariantOptions(line)"
-                    value-key="value"
-                    placeholder="Selecciona precio"
-                    class="w-full"
-                    @update:model-value="
-                      onContractVariantChange(
-                        line,
-                        ($event as number | undefined) ?? null,
-                      )
-                    "
-                  />
-                </UFormField>
               </div>
             </td>
             <td class="px-3 py-2 align-top">
@@ -271,6 +204,10 @@ watch(
                   :disabled="isContractLine(line)"
                 />
               </UFormField>
+              <span class="mt-1 block text-xs text-muted tabular-nums">
+                Costo línea:
+                {{ formatQuoteMoney(lineRow(line)?.costSubtotal ?? 0) }}
+              </span>
             </td>
             <td class="px-3 py-2 align-top text-right">
               <span class="font-medium tabular-nums">
@@ -311,16 +248,22 @@ watch(
         </span>
       </div>
       <div class="flex justify-between gap-4">
-        <span class="text-muted">Subtotal cotizado (líneas)</span>
+        <span class="text-muted">Subtotal cliente (líneas)</span>
         <span class="tabular-nums">
           {{ formatQuoteMoney(pricing.subtotalLines) }}
+        </span>
+      </div>
+      <div class="flex justify-between gap-4">
+        <span class="text-muted">Ganancia</span>
+        <span class="tabular-nums">
+          {{ formatQuoteMoney(pricing.profit) }}
         </span>
       </div>
       <div
         v-if="pricing.commissionValueAdd > 0.001"
         class="flex justify-between gap-4"
       >
-        <span class="text-muted">Comisión adicional</span>
+        <span class="text-muted">Comisión sobre ganancia</span>
         <span class="tabular-nums text-muted">
           +{{ formatQuoteMoney(pricing.commissionValueAdd) }}
         </span>

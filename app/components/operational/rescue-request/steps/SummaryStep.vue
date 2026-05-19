@@ -121,16 +121,37 @@ const locationCoordsLabel = computed(() => {
               label="Convenio"
             />
           </span>
-          <span class="tabular-nums">
+          <span class="tabular-nums text-right">
+            <span class="block text-xs text-muted">
+              {{ formatQuoteMoney(row.costSubtotal) }}
+            </span>
             {{ formatQuoteMoney(row.lineTotal) }}
           </span>
         </li>
       </ul>
+      <div class="flex justify-between gap-4 text-muted">
+        <span>Subtotal costo (empresa)</span>
+        <span class="tabular-nums">
+          {{ formatQuoteMoney(quotePricing.costSubtotal) }}
+        </span>
+      </div>
+      <div class="flex justify-between gap-4 text-muted">
+        <span>Subtotal cliente (líneas)</span>
+        <span class="tabular-nums">
+          {{ formatQuoteMoney(quotePricing.subtotalLines) }}
+        </span>
+      </div>
+      <div class="flex justify-between gap-4 text-muted">
+        <span>Ganancia</span>
+        <span class="tabular-nums">
+          {{ formatQuoteMoney(quotePricing.profit) }}
+        </span>
+      </div>
       <div
         v-if="quotePricing.commissionValueAdd > 0.001"
         class="flex justify-between gap-4 text-muted"
       >
-        <span>Comisión adicional</span>
+        <span>Comisión sobre ganancia</span>
         <span class="tabular-nums">
           +{{ formatQuoteMoney(quotePricing.commissionValueAdd) }}
         </span>

@@ -220,21 +220,6 @@ export const rescueStepQuoteWithSettingsSchema = z
       data.company_settings,
       ctx,
     );
-    const needsVariant = data.quote_lines.some((line) => {
-      if (line.service_id == null) return false;
-      const items =
-        data.company_settings?.contract?.items.filter(
-          (it) => it.service_id === line.service_id,
-        ) ?? [];
-      return items.length > 1 && line.contract_item_id == null;
-    });
-    if (needsVariant) {
-      ctx.addIssue({
-        code: 'custom',
-        message: 'Selecciona la variante de convenio para cada servicio con múltiples precios',
-        path: ['quote_lines'],
-      });
-    }
   });
 
 export const rescueStepSummarySchema = z.object({
