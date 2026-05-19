@@ -1,0 +1,53 @@
+---
+description: Nuxt auto-imports — do not manually import app components, composables, or utils
+alwaysApply: true
+---
+
+# Nuxt auto-imports
+
+This project uses [Nuxt auto-imports](https://nuxt.com/docs/guide/concepts/auto-imports). Do **not** add manual `import` statements for symbols that Nuxt already provides.
+
+## Use directly (no import)
+
+| Source | Examples |
+|--------|----------|
+| `app/components/` | `<CatalogDropdownSelect>`, `<OperationalRescueRequestStepsQuoteStep>` |
+| `app/composables/` | `useCatalogDropdown()`, `useRescueSupplierSearch()` |
+| `app/utils/` | `computeQuoteSummary()`, `getWizardStepKind()`, `formatQuoteMoney()` |
+| Vue / Nuxt | `ref`, `computed`, `watch`, `$fetch`, `useToast`, `navigateTo` |
+
+```vue
+<!-- BAD -->
+import { computeQuoteSummary } from '~/utils/quote-pricing';
+import { useCatalogDropdown } from '~/composables/useCatalogDropdown';
+
+<!-- GOOD -->
+const summary = computeQuoteSummary(state.quote_lines);
+```
+
+```vue
+<!-- GOOD — auto-imported component -->
+<CatalogDropdownSelect
+  v-model="line.service_id"
+  :fetcher="fetchServiceDropdown"
+/>
+```
+
+## Still import explicitly
+
+- Types and interfaces: `~/interfaces/**`, `import type { ... }`
+- Zod schemas: `~/schemas/**`
+- Constants: `~/constants/**`
+- npm packages: `zod`, `vue3-google-map`, `@pinia/colada`, etc.
+- Types exported from composables when typing props (e.g. `import type { CatalogDropdownFetcher } from '~/composables/useCatalogDropdown'`)
+
+```ts
+// GOOD
+import type { RescueRequestFormState } from '~/schemas/rescue-create';
+import { z } from 'zod';
+```
+
+## When editing files
+
+- Do not add redundant imports for components, composables, or utils.
+- If you touch existing manual imports from `~/components`, `~/composables`, or `~/utils`, remove them when safe (no broad refactors unless requested).
