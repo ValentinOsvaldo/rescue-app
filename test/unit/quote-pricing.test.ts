@@ -98,9 +98,12 @@ describe('roundQuoteMoney', () => {
 });
 
 describe('roundQuoteToNearestTen', () => {
-  it('rounds to nearest ten pesos', () => {
+  it('rounds up to the next ten pesos (ceil)', () => {
+    expect(roundQuoteToNearestTen(171)).toBe(180);
+    expect(roundQuoteToNearestTen(994)).toBe(1000);
     expect(roundQuoteToNearestTen(999)).toBe(1000);
-    expect(roundQuoteToNearestTen(994)).toBe(990);
+    expect(roundQuoteToNearestTen(170)).toBe(170);
+    expect(roundQuoteToNearestTen(180)).toBe(180);
   });
 });
 
@@ -247,7 +250,7 @@ describe('computeQuotePricing', () => {
     expectAllMoneyRounded(result);
   });
 
-  it('rounds line total to nearest ten and stores rounding_add', () => {
+  it('rounds line total up to next ten and stores rounding_add', () => {
     const lines = [line({ quantity: 1, unit_cost: 999, service_id: 1 })];
     const settings: RescueCompanySettings = {
       commissions: {
@@ -269,6 +272,31 @@ describe('computeQuotePricing', () => {
     expect(result.lines[0]!.roundingAdd).toBe(1);
     expect(result.roundingAddTotal).toBe(1);
     expect(result.subtotalLines).toBe(1000);
+    expectAllMoneyRounded(result);
+  });
+
+  it('rounds 171 up to 180 with rounding_add 9', () => {
+    const lines = [line({ quantity: 1, unit_cost: 171, service_id: 1 })];
+    const settings: RescueCompanySettings = {
+      commissions: {
+        commission_type: 'PERCENTAGE',
+        commission_value: 0,
+        commission_fixed: 0,
+        price_multiplier: 1,
+      },
+      contract: null,
+    };
+
+    const result = computeQuotePricing(lines, settings, {
+      ivaRate: 0,
+      roundToTen: true,
+    });
+
+    expect(result.lines[0]!.lineTotalCalculated).toBe(171);
+    expect(result.lines[0]!.lineTotal).toBe(180);
+    expect(result.lines[0]!.roundingAdd).toBe(9);
+    expect(result.roundingAddTotal).toBe(9);
+    expect(result.subtotalLines).toBe(180);
     expectAllMoneyRounded(result);
   });
 

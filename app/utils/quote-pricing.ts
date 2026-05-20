@@ -9,7 +9,7 @@ import type { RescueQuoteLine } from '~/interfaces/rescue';
 
 export interface QuotePricingOptions {
   ivaRate?: number;
-  /** Round each filled line total to nearest $10 (default true). */
+  /** Round each filled line total up to the next $10 (default true). */
   roundToTen?: boolean;
 }
 
@@ -64,7 +64,7 @@ export function roundQuoteMoney(value: number): number {
 
 export function roundQuoteToNearestTen(value: number): number {
   if (!Number.isFinite(value)) return 0;
-  return Math.round(value / 10) * 10;
+  return Math.ceil(value / 10) * 10;
 }
 
 function lineBaseFinal(line: Pick<RescueQuoteLine, 'quantity' | 'unit_cost'>): number {
