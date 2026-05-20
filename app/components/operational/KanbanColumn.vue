@@ -2,6 +2,8 @@
 interface Props<T> {
   title: string;
   items: T[];
+  /** Hex color for the column header top border. */
+  accentColor: string;
 }
 
 defineProps<Props<T>>();
@@ -12,7 +14,8 @@ defineProps<Props<T>>();
     class="flex h-full min-h-0 w-[280px] shrink-0 flex-col rounded-lg bg-muted/30 overflow-hidden"
   >
     <div
-      class="sticky top-0 z-10 shrink-0 px-3 py-2.5 rounded-t-lg bg-default border-t-2 border-t-primary"
+      class="sticky top-0 z-10 shrink-0 px-3 py-2.5 rounded-t-lg bg-default border-t-2"
+      :style="{ borderTopColor: accentColor }"
     >
       <div class="flex items-center justify-between">
         <span
