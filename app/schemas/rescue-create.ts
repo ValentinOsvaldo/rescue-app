@@ -121,10 +121,7 @@ export const rescueStepLocationSchema = z.object({
     .string()
     .transform((s) => s.trim())
     .pipe(z.string().min(1, { error: 'Indica la descripción del lugar' })),
-  service_description: z
-    .string()
-    .transform((s) => s.trim())
-    .pipe(z.string().min(1, { error: 'Indica la descripción del servicio' })),
+  service_description: z.string().transform((s) => s.trim()),
 });
 
 export const rescueStepSupplierSchema = z.object({
@@ -311,13 +308,6 @@ export const rescueCreateFormSchema = z
         path: ['location_description'],
       });
     }
-    if (!data.service_description) {
-      ctx.addIssue({
-        code: 'custom',
-        message: 'Indica la descripción del servicio',
-        path: ['service_description'],
-      });
-    }
   });
 
 export type RescueCreateFormOutput = z.output<typeof rescueCreateFormSchema>;
@@ -371,11 +361,11 @@ export function getStepSchemaForIndex(
       case 0:
         return rescueStepBasicsSchema;
       case 1:
-        return getRescueStepQuoteSchema(serviceType);
-      case 2:
         return rescueStepLocationSchema;
-      case 3:
+      case 2:
         return rescueStepSupplierSchema;
+      case 3:
+        return getRescueStepQuoteSchema(serviceType);
       case 4:
         return rescueStepSummarySchema;
       default:
@@ -389,32 +379,8 @@ export function getStepSchemaForIndex(
 
 export function rescueFormToCreateBody(
   data: RescueCreateFormOutput,
-  companySettings?: RescueCompanySettings | null,
 ): RescueCreateBody {
   const serial = String(data.serialNumber ?? '').trim();
-  const quoteLines = (data.quote_lines ?? []) as RescueQuoteLine[];
-  const settings =
-    companySettings
-    ?? ('company_settings' in data
-      ? (data as RescueCreateFormOutput & {
-          company_settings?: RescueCompanySettings | null;
-        }).company_settings
-      : null);
-
-  const pricing = computeQuotePricing(quoteLines, settings);
-  const quoteLinePayload = quoteLines
-    .filter((line) => line.service_id != null)
-    .map((line) => {
-      const row = pricing.lines.find((r) => r.line.id === line.id);
-      return {
-        service_id: line.service_id as number,
-        service_label: line.service_label,
-        quantity: line.quantity,
-        unit_cost: line.unit_cost,
-        cost_subtotal: row?.costSubtotal ?? 0,
-        line_total: row?.lineTotal ?? 0,
-      };
-    });
 
   return {
     service_type: data.service_type,
@@ -428,6 +394,5 @@ export function rescueFormToCreateBody(
     location_longitude: String(data.location_longitude ?? '').trim(),
     location_description: data.location_description,
     internal_notes: data.internal_notes,
-    ...(quoteLinePayload.length > 0 ? { quote_lines: quoteLinePayload } : {}),
   };
 }

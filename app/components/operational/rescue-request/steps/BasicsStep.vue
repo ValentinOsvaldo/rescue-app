@@ -12,11 +12,11 @@ defineProps<{
 
 <template>
   <div class="space-y-4">
-    <UFormField label="Tipo de solicitud" name="service_type">
+    <UFormField label="Tipo de solicitud" name="service_type" required>
       <OperationalRescueRequestServiceTypePicker v-model="state.service_type" />
     </UFormField>
 
-    <UFormField label="Cliente" name="client">
+    <UFormField label="Cliente" name="client" required>
       <CatalogDropdownSelect
         v-model="state.client"
         placeholder="Buscar cliente"
@@ -35,7 +35,7 @@ defineProps<{
       <UInput v-model="state.serialNumber" class="w-full" />
     </UFormField>
 
-    <UFormField label="Gestor" name="manager">
+    <UFormField label="Gestor" name="manager" required>
       <CatalogDropdownSelect
         v-model="state.manager"
         placeholder="Buscar gestor"

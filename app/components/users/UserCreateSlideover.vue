@@ -196,7 +196,7 @@ async function requestSubmit() {
         @submit="onSubmit"
         @error="onFormError"
       >
-        <UFormField label="Usuario" name="username">
+        <UFormField label="Usuario" name="username" required>
           <UInput
             :model-value="state.username"
             class="w-full uppercase"
@@ -210,10 +210,10 @@ async function requestSubmit() {
         <UFormField label="Apellidos" name="last_name">
           <UInput v-model="state.last_name" class="w-full" autocomplete="family-name" />
         </UFormField>
-        <UFormField label="Correo" name="email">
+        <UFormField label="Correo" name="email" required>
           <UInput v-model="state.email" type="email" class="w-full" autocomplete="email" />
         </UFormField>
-        <UFormField label="Rol" name="role">
+        <UFormField label="Rol" name="role" required>
           <USelectMenu
             v-model="state.role"
             :items="[...USER_ROLE_OPTIONS]"
@@ -236,6 +236,7 @@ async function requestSubmit() {
         <UFormField
           :label="isEdit ? 'Nueva contraseña' : 'Contraseña'"
           name="password"
+          :required="!isEdit"
           :description="isEdit ? 'Dejar vacío para no cambiar la contraseña' : undefined"
         >
           <UInput

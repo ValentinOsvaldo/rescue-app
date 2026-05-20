@@ -98,7 +98,7 @@ const { mutate, asyncStatus } = useMutation({
   }) =>
     itemId != null
       ? $fetch(`/api/catalogue/contract/item/update/${itemId}/`, {
-          method: 'PATCH',
+          method: 'PUT',
           body,
         })
       : $fetch(`/api/catalogue/contract/${props.contractId}/item/create/`, {
@@ -166,7 +166,7 @@ async function requestSubmit() {
         @submit="onSubmit"
         @error="onFormError"
       >
-        <UFormField label="Servicio" name="service">
+        <UFormField label="Servicio" name="service" required>
           <CatalogDropdownSelect
             :key="editingItemId ?? 'create'"
             v-model="state.service"
@@ -174,7 +174,7 @@ async function requestSubmit() {
             :fetcher="fetchServiceDropdown"
           />
         </UFormField>
-        <UFormField label="Precio" name="price">
+        <UFormField label="Precio" name="price" required>
           <UInputNumber
             v-model="priceModel"
             v-bind="catalogCurrencyInputProps"

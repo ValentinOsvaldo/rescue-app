@@ -120,7 +120,7 @@ usePaginatedTableInfiniteScroll({
 const { mutate: saveHeader, asyncStatus: headerSaveStatus } = useMutation({
   mutation: (body: ReturnType<typeof contractHeaderFormToUpdateBody>) =>
     $fetch(`/api/catalogue/contract/update/${contractId.value}/`, {
-      method: 'PATCH',
+      method: 'PUT',
       body,
     }),
   async onSuccess() {

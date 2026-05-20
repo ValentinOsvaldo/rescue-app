@@ -21,7 +21,7 @@ function quoteStepItemFor(serviceType: RescueServiceType): StepperItem {
       ? 'Opcional'
       : 'Servicios y precios',
     icon: 'i-lucide-calculator',
-    value: 1,
+    value: 0,
   };
 }
 
@@ -30,14 +30,15 @@ export function getWizardStepKind(
   serviceType: RescueServiceType,
 ): RescueWizardStepKind {
   if (stepIndex === 0) return 'basics';
-  if (stepIndex === 1) return 'quote';
 
   if (serviceType === 'rescue') {
-    if (stepIndex === 2) return 'location';
-    if (stepIndex === 3) return 'supplier';
-    if (stepIndex === 4) return 'summary';
+    if (stepIndex === 1) return 'location';
+    if (stepIndex === 2) return 'supplier';
+    if (stepIndex === 3) return 'quote';
+    return 'summary';
   }
 
+  if (stepIndex === 1) return 'quote';
   return 'summary';
 }
 
@@ -52,19 +53,19 @@ export function getRescueStepItems(
         icon: 'i-lucide-clipboard-list',
         value: 0,
       },
-      { ...quoteStepItemFor('rescue') },
       {
         title: 'Ubicación',
         description: 'Unidad en mapa',
         icon: 'i-lucide-map-pin',
-        value: 2,
+        value: 1,
       },
       {
         title: 'Proveedor',
         description: 'Opcional',
         icon: 'i-lucide-truck',
-        value: 3,
+        value: 2,
       },
+      { ...quoteStepItemFor('rescue'), value: 3 },
       {
         title: 'Resumen',
         description: 'Confirmar',
@@ -81,7 +82,7 @@ export function getRescueStepItems(
       icon: 'i-lucide-clipboard-list',
       value: 0,
     },
-    { ...quoteStepItemFor(serviceType) },
+    { ...quoteStepItemFor(serviceType), value: 1 },
     {
       title: 'Resumen',
       description: 'Confirmar',

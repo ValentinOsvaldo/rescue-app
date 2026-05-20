@@ -77,7 +77,7 @@ const { mutate, asyncStatus } = useMutation({
   mutation: ({ body, id }: { body: SupplierCreateBody; id: number | null }) =>
     id != null
       ? $fetch(`/api/supplier/update/${id}/`, {
-          method: 'PATCH',
+          method: 'PUT',
           body,
         })
       : $fetch('/api/supplier/create/', { method: 'POST', body }),

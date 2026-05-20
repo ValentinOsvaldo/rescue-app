@@ -4,6 +4,7 @@ import type { RescueQuoteLine } from '~/interfaces/rescue';
 import {
   computeQuotePricing,
   roundQuoteMoney,
+  roundQuoteToNearestTen,
   type QuotePricingSummary,
 } from '~/utils/quote-pricing';
 
@@ -12,11 +13,23 @@ function line(
 ): RescueQuoteLine {
   return {
     id: partial.id ?? crypto.randomUUID(),
-    service_id: partial.service_id ?? 1,
+    service_id:
+      partial.service_id !== undefined ? partial.service_id : 1,
     service_label: partial.service_label ?? 'Servicio',
     quantity: partial.quantity,
     unit_cost: partial.unit_cost,
     contract_item_id: partial.contract_item_id ?? null,
+  };
+}
+
+function emptyLine(): RescueQuoteLine {
+  return {
+    id: crypto.randomUUID(),
+    service_id: null,
+    service_label: '',
+    quantity: 0,
+    unit_cost: 0,
+    contract_item_id: null,
   };
 }
 
@@ -28,7 +41,7 @@ function expectAllMoneyRounded(result: QuotePricingSummary) {
   expectAtMostTwoDecimals(result.costSubtotal);
   expectAtMostTwoDecimals(result.subtotalLines);
   expectAtMostTwoDecimals(result.profit);
-  expectAtMostTwoDecimals(result.commissionValueAdd);
+  expectAtMostTwoDecimals(result.sellerCommission);
   expectAtMostTwoDecimals(result.totalBeforeTax);
   expectAtMostTwoDecimals(result.ivaAmount);
   expectAtMostTwoDecimals(result.totalCharged);
@@ -37,6 +50,8 @@ function expectAllMoneyRounded(result: QuotePricingSummary) {
     expectAtMostTwoDecimals(row.baseFinal);
     expectAtMostTwoDecimals(row.afterMultiplier);
     expectAtMostTwoDecimals(row.fixedShare);
+    expectAtMostTwoDecimals(row.lineTotalCalculated);
+    expectAtMostTwoDecimals(row.roundingAdd);
     expectAtMostTwoDecimals(row.lineTotal);
   }
 }
@@ -82,15 +97,37 @@ describe('roundQuoteMoney', () => {
   });
 });
 
+describe('roundQuoteToNearestTen', () => {
+  it('rounds to nearest ten pesos', () => {
+    expect(roundQuoteToNearestTen(999)).toBe(1000);
+    expect(roundQuoteToNearestTen(994)).toBe(990);
+  });
+});
+
 describe('computeQuotePricing', () => {
-  it('applies multiplier and prorates commission_fixed on standard lines only', () => {
+  it('does not apply commissions on lines without service', () => {
+    const result = computeQuotePricing([emptyLine()], baseSettings, {
+      ivaRate: 0,
+      roundToTen: false,
+    });
+
+    expect(result.lines[0]!.lineTotal).toBe(0);
+    expect(result.subtotalLines).toBe(0);
+    expect(result.sellerCommission).toBe(0);
+    expectAllMoneyRounded(result);
+  });
+
+  it('applies multiplier and splits commission_fixed across filled lines only', () => {
     const lines = [
       line({ quantity: 1, unit_cost: 500 }),
       line({ quantity: 1, unit_cost: 300 }),
       line({ quantity: 1, unit_cost: 200 }),
     ];
 
-    const result = computeQuotePricing(lines, baseSettings, { ivaRate: 0 });
+    const result = computeQuotePricing(lines, baseSettings, {
+      ivaRate: 0,
+      roundToTen: false,
+    });
 
     expect(result.lines[0]!.lineTotal).toBe(800);
     expect(result.lines[1]!.lineTotal).toBe(480);
@@ -98,12 +135,13 @@ describe('computeQuotePricing', () => {
     expect(result.costSubtotal).toBe(1000);
     expect(result.subtotalLines).toBe(1600);
     expect(result.profit).toBe(600);
-    expect(result.commissionValueAdd).toBe(30);
-    expect(result.totalBeforeTax).toBe(1630);
+    expect(result.sellerCommission).toBe(30);
+    expect(result.sellerCommissionAddsToTotal).toBe(false);
+    expect(result.totalBeforeTax).toBe(1600);
     expectAllMoneyRounded(result);
   });
 
-  it('computes commission_value as percentage of profit', () => {
+  it('computes percentage seller commission from profit without adding to client total', () => {
     const lines = [
       line({ quantity: 1, unit_cost: 1000 }),
       line({ quantity: 1, unit_cost: 1000 }),
@@ -119,17 +157,20 @@ describe('computeQuotePricing', () => {
       contract: null,
     };
 
-    const result = computeQuotePricing(lines, settings, { ivaRate: 0 });
+    const result = computeQuotePricing(lines, settings, {
+      ivaRate: 0,
+      roundToTen: false,
+    });
 
     expect(result.costSubtotal).toBe(3000);
     expect(result.subtotalLines).toBe(3500);
     expect(result.profit).toBe(500);
-    expect(result.commissionValueAdd).toBe(25);
-    expect(result.totalBeforeTax).toBe(3525);
+    expect(result.sellerCommission).toBe(25);
+    expect(result.totalBeforeTax).toBe(3500);
     expectAllMoneyRounded(result);
   });
 
-  it('skips company commissions for contract lines but includes global commission on profit', () => {
+  it('skips company commissions for contract lines but includes seller commission on profit', () => {
     const lines = [
       line({
         quantity: 3,
@@ -140,7 +181,10 @@ describe('computeQuotePricing', () => {
       line({ quantity: 1, unit_cost: 200, service_id: 2 }),
     ];
 
-    const result = computeQuotePricing(lines, baseSettings, { ivaRate: 0 });
+    const result = computeQuotePricing(lines, baseSettings, {
+      ivaRate: 0,
+      roundToTen: false,
+    });
 
     expect(result.lines[0]!.isContractLine).toBe(true);
     expect(result.lines[0]!.lineTotal).toBe(1500);
@@ -150,11 +194,12 @@ describe('computeQuotePricing', () => {
     expect(result.costSubtotal).toBe(1700);
     expect(result.subtotalLines).toBe(2220);
     expect(result.profit).toBe(520);
-    expect(result.commissionValueAdd).toBe(26);
+    expect(result.sellerCommission).toBe(26);
+    expect(result.totalBeforeTax).toBe(2220);
     expectAllMoneyRounded(result);
   });
 
-  it('adds fixed commission_value and iva on totalBeforeTax', () => {
+  it('adds fixed seller commission to totalBeforeTax', () => {
     const lines = [line({ quantity: 1, unit_cost: 1000 })];
     const settings: RescueCompanySettings = {
       commissions: {
@@ -166,11 +211,12 @@ describe('computeQuotePricing', () => {
       contract: null,
     };
 
-    const result = computeQuotePricing(lines, settings);
+    const result = computeQuotePricing(lines, settings, { roundToTen: false });
 
     expect(result.subtotalLines).toBe(1000);
     expect(result.profit).toBe(0);
-    expect(result.commissionValueAdd).toBe(100);
+    expect(result.sellerCommission).toBe(100);
+    expect(result.sellerCommissionAddsToTotal).toBe(true);
     expect(result.totalBeforeTax).toBe(1100);
     expect(result.ivaAmount).toBe(176);
     expect(result.totalCharged).toBe(1276);
@@ -189,32 +235,62 @@ describe('computeQuotePricing', () => {
       contract: null,
     };
 
-    const result = computeQuotePricing(lines, settings, { ivaRate: 0 });
+    const result = computeQuotePricing(lines, settings, {
+      ivaRate: 0,
+      roundToTen: false,
+    });
 
     expect(result.subtotalLines).toBe(800);
     expect(result.profit).toBe(-200);
-    expect(result.commissionValueAdd).toBe(0);
+    expect(result.sellerCommission).toBe(0);
     expect(result.totalBeforeTax).toBe(800);
     expectAllMoneyRounded(result);
   });
 
-  it('applies FIXED commission even when profit is zero', () => {
-    const lines = [line({ quantity: 1, unit_cost: 500 })];
+  it('rounds line total to nearest ten and stores rounding_add', () => {
+    const lines = [line({ quantity: 1, unit_cost: 999, service_id: 1 })];
     const settings: RescueCompanySettings = {
       commissions: {
-        commission_type: 'FIXED',
-        commission_value: 100,
+        commission_type: 'PERCENTAGE',
+        commission_value: 0,
         commission_fixed: 0,
         price_multiplier: 1,
       },
       contract: null,
     };
 
-    const result = computeQuotePricing(lines, settings, { ivaRate: 0 });
+    const result = computeQuotePricing(lines, settings, {
+      ivaRate: 0,
+      roundToTen: true,
+    });
 
-    expect(result.profit).toBe(0);
-    expect(result.commissionValueAdd).toBe(100);
-    expect(result.totalBeforeTax).toBe(600);
+    expect(result.lines[0]!.lineTotalCalculated).toBe(999);
+    expect(result.lines[0]!.lineTotal).toBe(1000);
+    expect(result.lines[0]!.roundingAdd).toBe(1);
+    expect(result.roundingAddTotal).toBe(1);
+    expect(result.subtotalLines).toBe(1000);
+    expectAllMoneyRounded(result);
+  });
+
+  it('skips round-to-ten when disabled', () => {
+    const lines = [line({ quantity: 1, unit_cost: 999, service_id: 1 })];
+    const settings: RescueCompanySettings = {
+      commissions: {
+        commission_type: 'PERCENTAGE',
+        commission_value: 0,
+        commission_fixed: 0,
+        price_multiplier: 1,
+      },
+      contract: null,
+    };
+
+    const result = computeQuotePricing(lines, settings, {
+      ivaRate: 0,
+      roundToTen: false,
+    });
+
+    expect(result.lines[0]!.lineTotal).toBe(999);
+    expect(result.lines[0]!.roundingAdd).toBe(0);
     expectAllMoneyRounded(result);
   });
 });

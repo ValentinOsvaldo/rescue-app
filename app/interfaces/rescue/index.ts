@@ -35,15 +35,6 @@ export interface RescueQuoteLine {
   contract_item_id: number | null;
 }
 
-export interface RescueQuoteLinePayload {
-  service_id: number;
-  service_label: string;
-  quantity: number;
-  unit_cost: number;
-  cost_subtotal: number;
-  line_total: number;
-}
-
 export interface RescueCreateBody {
   service_type: RescueServiceType;
   client: number;
@@ -56,8 +47,6 @@ export interface RescueCreateBody {
   location_longitude: string;
   location_description: string;
   internal_notes: string;
-  /** Prepared for backend; may be ignored by API until supported. */
-  quote_lines?: RescueQuoteLinePayload[];
 }
 
 export interface RescueCreateResponse {

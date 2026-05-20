@@ -56,7 +56,7 @@ const { mutate, asyncStatus } = useMutation({
   }) =>
     id != null
       ? $fetch(`/api/catalogue/multipurpose/update/${id}/`, {
-          method: 'PATCH',
+          method: 'PUT',
           body: body as CategoryUpdateBody,
         })
       : $fetch('/api/catalogue/multipurpose/create/', {
@@ -130,7 +130,7 @@ async function requestSubmit() {
         @submit="onSubmit"
         @error="onFormError"
       >
-        <UFormField label="Nombre" name="name">
+        <UFormField label="Nombre" name="name" required>
           <UInput
             :model-value="state.name"
             class="w-full uppercase"

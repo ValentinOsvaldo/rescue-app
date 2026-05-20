@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import type { RescueRequestFormState } from '~/schemas/rescue-create';
-import { DEFAULT_IVA_RATE } from '~/constants/quote-pricing';
+import { DEFAULT_IVA_RATE, QUOTE_SUMMARY_LABELS } from '~/constants/quote-pricing';
 import { RESCUE_SERVICE_TYPE_OPTIONS } from '~/constants/rescue-select-options';
 import { parseRescueCoord } from '~/schemas/rescue-create';
 
@@ -11,6 +11,18 @@ const quotePricing = computed(() =>
 );
 
 const ivaPercentLabel = computed(() => formatIvaPercent(DEFAULT_IVA_RATE));
+
+const sellerCommissionLabel = computed(() => {
+  const type = state.value.company_settings?.commissions.commission_type;
+  if (type === 'FIXED') {
+    return QUOTE_SUMMARY_LABELS.sellerCommissionFixed;
+  }
+  const pct = state.value.company_settings?.commissions.commission_value;
+  if (pct != null) {
+    return `${QUOTE_SUMMARY_LABELS.sellerCommissionPercent} (${pct}% de utilidad)`;
+  }
+  return QUOTE_SUMMARY_LABELS.sellerCommissionPercent;
+});
 
 const serviceTypeOption = computed(() =>
   RESCUE_SERVICE_TYPE_OPTIONS.find((o) => o.value === state.value.service_type),
@@ -130,34 +142,35 @@ const locationCoordsLabel = computed(() => {
         </li>
       </ul>
       <div class="flex justify-between gap-4 text-muted">
-        <span>Subtotal costo (empresa)</span>
+        <span>{{ QUOTE_SUMMARY_LABELS.technicalCost }}</span>
         <span class="tabular-nums">
           {{ formatQuoteMoney(quotePricing.costSubtotal) }}
         </span>
       </div>
       <div class="flex justify-between gap-4 text-muted">
-        <span>Subtotal cliente (líneas)</span>
+        <span>{{ QUOTE_SUMMARY_LABELS.subtotal }}</span>
         <span class="tabular-nums">
           {{ formatQuoteMoney(quotePricing.subtotalLines) }}
         </span>
       </div>
       <div class="flex justify-between gap-4 text-muted">
-        <span>Ganancia</span>
+        <span>{{ QUOTE_SUMMARY_LABELS.utility }}</span>
         <span class="tabular-nums">
           {{ formatQuoteMoney(quotePricing.profit) }}
         </span>
       </div>
       <div
-        v-if="quotePricing.commissionValueAdd > 0.001"
+        v-if="quotePricing.sellerCommission > 0.001"
         class="flex justify-between gap-4 text-muted"
       >
-        <span>Comisión sobre ganancia</span>
+        <span>{{ sellerCommissionLabel }}</span>
         <span class="tabular-nums">
-          +{{ formatQuoteMoney(quotePricing.commissionValueAdd) }}
+          <template v-if="quotePricing.sellerCommissionAddsToTotal">+</template>
+          {{ formatQuoteMoney(quotePricing.sellerCommission) }}
         </span>
       </div>
       <div class="flex justify-between gap-4 text-muted">
-        <span>Subtotal antes de IVA</span>
+        <span>{{ QUOTE_SUMMARY_LABELS.beforeTax }}</span>
         <span class="tabular-nums">
           {{ formatQuoteMoney(quotePricing.totalBeforeTax) }}
         </span>
@@ -169,12 +182,19 @@ const locationCoordsLabel = computed(() => {
         </span>
       </div>
       <div class="flex justify-between gap-4 border-t border-default pt-2 font-medium">
-        <span>Total cotizado</span>
+        <span>{{ QUOTE_SUMMARY_LABELS.totalQuoted }}</span>
         <span class="tabular-nums text-primary">
           {{ formatQuoteMoney(quotePricing.totalCharged) }}
         </span>
       </div>
     </UCard>
+
+    <DevOnly v-if="quotePricing.lines.length > 0">
+      <OperationalRescueRequestQuotePricingDevBreakdown
+        :pricing="quotePricing"
+        :settings="state.company_settings"
+      />
+    </DevOnly>
 
     <UFormField label="Nota interna" name="internal_notes">
       <UTextarea v-model="state.internal_notes" class="w-full" :rows="4" />

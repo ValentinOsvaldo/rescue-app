@@ -1,10 +1,16 @@
-import { DEFAULT_IVA_RATE, QUOTE_MONEY_DECIMALS } from '~/constants/quote-pricing';
+import {
+  DEFAULT_IVA_RATE,
+  DEFAULT_QUOTE_ROUND_TO_TEN,
+  QUOTE_MONEY_DECIMALS,
+} from '~/constants/quote-pricing';
 import type { RescueCompanySettings } from '~/interfaces/rescue/company-settings';
 import { isContractLine } from '~/utils/rescue-company-settings';
 import type { RescueQuoteLine } from '~/interfaces/rescue';
 
 export interface QuotePricingOptions {
   ivaRate?: number;
+  /** Round each filled line total to nearest $10 (default true). */
+  roundToTen?: boolean;
 }
 
 export interface QuoteLinePricing {
@@ -14,6 +20,8 @@ export interface QuoteLinePricing {
   baseFinal: number;
   afterMultiplier: number;
   fixedShare: number;
+  lineTotalCalculated: number;
+  roundingAdd: number;
   lineTotal: number;
 }
 
@@ -21,7 +29,13 @@ export interface QuotePricingSummary {
   costSubtotal: number;
   subtotalLines: number;
   profit: number;
+  /** Seller commission (PERCENTAGE from profit or FIXED amount). */
+  sellerCommission: number;
+  /** @deprecated Alias of sellerCommission */
   commissionValueAdd: number;
+  /** Whether seller commission is added to the client-facing total. */
+  sellerCommissionAddsToTotal: boolean;
+  roundingAddTotal: number;
   totalBeforeTax: number;
   ivaAmount: number;
   totalCharged: number;
@@ -37,9 +51,20 @@ const DEFAULT_COMMISSIONS = {
 
 const MONEY_FACTOR = 10 ** QUOTE_MONEY_DECIMALS;
 
+export function isFilledQuoteLine(
+  line: Pick<RescueQuoteLine, 'service_id'>,
+): boolean {
+  return line.service_id != null;
+}
+
 export function roundQuoteMoney(value: number): number {
   if (!Number.isFinite(value)) return 0;
   return Math.round((value + Number.EPSILON) * MONEY_FACTOR) / MONEY_FACTOR;
+}
+
+export function roundQuoteToNearestTen(value: number): number {
+  if (!Number.isFinite(value)) return 0;
+  return Math.round(value / 10) * 10;
 }
 
 function lineBaseFinal(line: Pick<RescueQuoteLine, 'quantity' | 'unit_cost'>): number {
@@ -48,20 +73,53 @@ function lineBaseFinal(line: Pick<RescueQuoteLine, 'quantity' | 'unit_cost'>): n
   return qty * unit;
 }
 
-function computeProfit(subtotalLines: number, costSubtotal: number): number {
-  return roundQuoteMoney(subtotalLines - costSubtotal);
+function applyLineRounding(
+  lineTotalCalculated: number,
+  roundToTen: boolean,
+): { lineTotal: number; roundingAdd: number } {
+  const calculated = roundQuoteMoney(lineTotalCalculated);
+  if (!roundToTen) {
+    return { lineTotal: calculated, roundingAdd: 0 };
+  }
+  const lineTotal = roundQuoteToNearestTen(calculated);
+  return {
+    lineTotal,
+    roundingAdd: roundQuoteMoney(lineTotal - calculated),
+  };
 }
 
-function computeCommissionValueAdd(
+function emptyLinePricing(line: RescueQuoteLine): QuoteLinePricing {
+  return {
+    line,
+    isContractLine: false,
+    costSubtotal: 0,
+    baseFinal: 0,
+    afterMultiplier: 0,
+    fixedShare: 0,
+    lineTotalCalculated: 0,
+    roundingAdd: 0,
+    lineTotal: 0,
+  };
+}
+
+function computeSellerCommission(
   profit: number,
   settings: RescueCompanySettings | null | undefined,
-): number {
+): { amount: number; addsToTotal: boolean } {
   const commissions = settings?.commissions ?? DEFAULT_COMMISSIONS;
   if (commissions.commission_type === 'FIXED') {
-    return roundQuoteMoney(commissions.commission_value);
+    return {
+      amount: roundQuoteMoney(commissions.commission_value),
+      addsToTotal: true,
+    };
   }
-  if (profit <= 0) return 0;
-  return roundQuoteMoney(profit * (commissions.commission_value / 100));
+  if (profit <= 0) {
+    return { amount: 0, addsToTotal: false };
+  }
+  return {
+    amount: roundQuoteMoney(profit * (commissions.commission_value / 100)),
+    addsToTotal: false,
+  };
 }
 
 function distributeRoundedFixedShares(
@@ -71,16 +129,16 @@ function distributeRoundedFixedShares(
   commissionFixedPool: number,
 ): Map<number, number> {
   const shares = new Map<number, number>();
-  if (standardIndices.length === 0) return shares;
+  if (standardIndices.length === 0 || standardAfterMultSum <= 0) {
+    return shares;
+  }
 
   const poolRounded = roundQuoteMoney(commissionFixedPool);
 
   for (const index of standardIndices) {
     const draft = rowDrafts[index]!;
     const raw =
-      standardAfterMultSum > 0
-        ? commissionFixedPool * (draft.afterMultiplier / standardAfterMultSum)
-        : 0;
+      commissionFixedPool * (draft.afterMultiplier / standardAfterMultSum);
     shares.set(index, roundQuoteMoney(raw));
   }
 
@@ -107,6 +165,7 @@ export function computeQuotePricing(
   options: QuotePricingOptions = {},
 ): QuotePricingSummary {
   const ivaRate = options.ivaRate ?? DEFAULT_IVA_RATE;
+  const roundToTen = options.roundToTen ?? DEFAULT_QUOTE_ROUND_TO_TEN;
   const commissions = settings?.commissions ?? DEFAULT_COMMISSIONS;
   const priceMultiplier = commissions.price_multiplier;
   const commissionFixedPool = commissions.commission_fixed;
@@ -120,7 +179,18 @@ export function computeQuotePricing(
     afterMultiplier: number;
   }> = [];
 
-  lines.forEach((line, index) => {
+  lines.forEach((line) => {
+    if (!isFilledQuoteLine(line)) {
+      rowDrafts.push({
+        line,
+        isContractLine: false,
+        costSubtotal: 0,
+        baseFinal: 0,
+        afterMultiplier: 0,
+      });
+      return;
+    }
+
     const contractLine = isContractLine(line);
     const costSubtotal = lineBaseFinal(line);
     const baseFinal = costSubtotal;
@@ -144,7 +214,7 @@ export function computeQuotePricing(
       baseFinal,
       afterMultiplier,
     });
-    standardIndices.push(index);
+    standardIndices.push(rowDrafts.length - 1);
   });
 
   const standardAfterMultSum = standardIndices.reduce(
@@ -160,8 +230,16 @@ export function computeQuotePricing(
   );
 
   const pricingLines: QuoteLinePricing[] = rowDrafts.map((draft, index) => {
+    if (!isFilledQuoteLine(draft.line)) {
+      return emptyLinePricing(draft.line);
+    }
+
     if (draft.isContractLine) {
       const costSubtotal = roundQuoteMoney(draft.costSubtotal);
+      const { lineTotal, roundingAdd } = applyLineRounding(
+        costSubtotal,
+        roundToTen,
+      );
       return {
         line: draft.line,
         isContractLine: true,
@@ -169,7 +247,9 @@ export function computeQuotePricing(
         baseFinal: costSubtotal,
         afterMultiplier: costSubtotal,
         fixedShare: 0,
-        lineTotal: costSubtotal,
+        lineTotalCalculated: costSubtotal,
+        roundingAdd,
+        lineTotal,
       };
     }
 
@@ -177,6 +257,11 @@ export function computeQuotePricing(
     const baseFinal = roundQuoteMoney(draft.baseFinal);
     const afterMultiplier = roundQuoteMoney(draft.afterMultiplier);
     const fixedShare = fixedShareByIndex.get(index) ?? 0;
+    const lineTotalCalculated = roundQuoteMoney(afterMultiplier + fixedShare);
+    const { lineTotal, roundingAdd } = applyLineRounding(
+      lineTotalCalculated,
+      roundToTen,
+    );
 
     return {
       line: draft.line,
@@ -185,15 +270,24 @@ export function computeQuotePricing(
       baseFinal,
       afterMultiplier,
       fixedShare,
-      lineTotal: roundQuoteMoney(afterMultiplier + fixedShare),
+      lineTotalCalculated,
+      roundingAdd,
+      lineTotal,
     };
   });
 
   const costSubtotal = pricingLines.reduce((sum, row) => sum + row.costSubtotal, 0);
   const subtotalLines = pricingLines.reduce((sum, row) => sum + row.lineTotal, 0);
-  const profit = computeProfit(subtotalLines, costSubtotal);
-  const commissionValueAdd = computeCommissionValueAdd(profit, settings);
-  const totalBeforeTax = roundQuoteMoney(subtotalLines + commissionValueAdd);
+  const roundingAddTotal = pricingLines.reduce(
+    (sum, row) => sum + row.roundingAdd,
+    0,
+  );
+  const profit = roundQuoteMoney(subtotalLines - costSubtotal);
+  const { amount: sellerCommission, addsToTotal: sellerCommissionAddsToTotal } =
+    computeSellerCommission(profit, settings);
+  const totalBeforeTax = roundQuoteMoney(
+    subtotalLines + (sellerCommissionAddsToTotal ? sellerCommission : 0),
+  );
   const ivaAmount = roundQuoteMoney(totalBeforeTax * ivaRate);
   const totalCharged = roundQuoteMoney(totalBeforeTax + ivaAmount);
 
@@ -201,7 +295,10 @@ export function computeQuotePricing(
     costSubtotal,
     subtotalLines,
     profit,
-    commissionValueAdd,
+    sellerCommission,
+    commissionValueAdd: sellerCommission,
+    sellerCommissionAddsToTotal,
+    roundingAddTotal,
     totalBeforeTax,
     ivaAmount,
     totalCharged,
@@ -211,25 +308,34 @@ export function computeQuotePricing(
 
 /** @deprecated Use computeQuotePricing — kept for gradual migration */
 export function computeQuoteLineTotals(
-  line: Pick<RescueQuoteLine, 'quantity' | 'unit_cost' | 'contract_item_id'>,
+  line: Pick<RescueQuoteLine, 'quantity' | 'unit_cost' | 'contract_item_id' | 'service_id'>,
   settings?: RescueCompanySettings | null,
+  options?: QuotePricingOptions,
 ): Pick<
   QuoteLinePricing,
-  'costSubtotal' | 'lineTotal' | 'isContractLine' | 'fixedShare' | 'afterMultiplier'
+  | 'costSubtotal'
+  | 'lineTotal'
+  | 'lineTotalCalculated'
+  | 'roundingAdd'
+  | 'isContractLine'
+  | 'fixedShare'
+  | 'afterMultiplier'
 > {
   const fullLine: RescueQuoteLine = {
     id: '',
-    service_id: null,
+    service_id: line.service_id ?? null,
     service_label: '',
     quantity: line.quantity,
     unit_cost: line.unit_cost,
     contract_item_id: line.contract_item_id ?? null,
   };
-  const summary = computeQuotePricing([fullLine], settings);
+  const summary = computeQuotePricing([fullLine], settings, options);
   const row = summary.lines[0]!;
   return {
     costSubtotal: row.costSubtotal,
     lineTotal: row.lineTotal,
+    lineTotalCalculated: row.lineTotalCalculated,
+    roundingAdd: row.roundingAdd,
     isContractLine: row.isContractLine,
     fixedShare: row.fixedShare,
     afterMultiplier: row.afterMultiplier,
@@ -248,7 +354,7 @@ export function computeQuoteSummary(
     totalCharged: pricing.totalCharged,
     subtotalLines: pricing.subtotalLines,
     profit: pricing.profit,
-    commissionValueAdd: pricing.commissionValueAdd,
+    commissionValueAdd: pricing.sellerCommission,
     totalBeforeTax: pricing.totalBeforeTax,
     ivaAmount: pricing.ivaAmount,
     lines: pricing.lines.map((row) => ({

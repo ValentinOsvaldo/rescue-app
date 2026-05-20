@@ -177,7 +177,7 @@ const { mutate, asyncStatus } = useMutation({
   }) => {
     if (id != null) {
       return $fetch(`/api/catalogue/client/update/${id}/`, {
-        method: 'PATCH',
+        method: 'PUT',
         body,
       });
     }
@@ -296,14 +296,14 @@ async function requestSubmit() {
           >
             Datos generales
           </h3>
-          <UFormField label="Compañía" name="company">
+          <UFormField label="Compañía" name="company" required>
             <CatalogDropdownSelect
               v-model="state.company"
               placeholder="Buscar compañía"
               :fetcher="fetchCompanyDropdown"
             />
           </UFormField>
-          <UFormField label="Nombre" name="name">
+          <UFormField label="Nombre" name="name" required>
             <UInput
               :model-value="state.name"
               class="w-full uppercase"
@@ -312,11 +312,11 @@ async function requestSubmit() {
               "
             />
           </UFormField>
-          <UFormField label="Razón social" name="business_name">
+          <UFormField label="Razón social" name="business_name" required>
             <UInput v-model="state.business_name" class="w-full" />
           </UFormField>
           <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
-            <UFormField label="RFC" name="rfc">
+            <UFormField label="RFC" name="rfc" required>
               <UInput
                 :model-value="state.rfc"
                 class="w-full uppercase"
@@ -326,7 +326,7 @@ async function requestSubmit() {
                 "
               />
             </UFormField>
-            <UFormField label="Teléfono" name="phone">
+            <UFormField label="Teléfono" name="phone" required>
               <UInput
                 :model-value="state.phone"
                 class="w-full"
@@ -340,10 +340,10 @@ async function requestSubmit() {
               />
             </UFormField>
           </div>
-          <UFormField label="Email" name="email">
+          <UFormField label="Email" name="email" required>
             <UInput v-model="state.email" type="email" class="w-full" />
           </UFormField>
-          <UFormField label="Dirección" name="address">
+          <UFormField label="Dirección" name="address" required>
             <UInput v-model="state.address" class="w-full" />
           </UFormField>
         </section>
@@ -354,7 +354,7 @@ async function requestSubmit() {
           >
             Configuración comercial
           </h3>
-          <UFormField label="Tipo de cliente" name="client_type">
+          <UFormField label="Tipo de cliente" name="client_type" required>
             <USelectMenu
               v-model="state.client_type"
               :items="[...CLIENT_TYPE_OPTIONS]"
@@ -363,7 +363,7 @@ async function requestSubmit() {
               variant="subtle"
             />
           </UFormField>
-          <UFormField label="Modo de facturación" name="billing_type">
+          <UFormField label="Modo de facturación" name="billing_type" required>
             <USelectMenu
               v-model="state.billing_type"
               :items="[...BILLING_TYPE_OPTIONS]"
@@ -372,7 +372,7 @@ async function requestSubmit() {
               variant="subtle"
             />
           </UFormField>
-          <UFormField label="Vendedor asignado" name="seller">
+          <UFormField label="Vendedor asignado" name="seller" required>
             <CatalogDropdownSelect
               v-model="state.seller"
               placeholder="Buscar vendedor"
@@ -384,7 +384,7 @@ async function requestSubmit() {
               Comisión del vendedor (sobre utilidad)
             </span>
             <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
-              <UFormField name="commission_type">
+              <UFormField name="commission_type" required>
                 <USelectMenu
                   v-model="state.commission_type"
                   :items="[...COMMISSION_TYPE_OPTIONS]"
@@ -393,7 +393,7 @@ async function requestSubmit() {
                   variant="subtle"
                 />
               </UFormField>
-              <UFormField name="commission_value">
+              <UFormField name="commission_value" required>
                 <UInputNumber
                   :key="state.commission_type"
                   v-model="commissionValueModel"
@@ -407,6 +407,7 @@ async function requestSubmit() {
           <UFormField
             label="Comisión fija de vendedor por cotización"
             name="commission_fixed"
+            required
             help="Se prorratea entre las partidas de la cotización al asignar el vendedor."
           >
             <UInputNumber
@@ -414,7 +415,7 @@ async function requestSubmit() {
               v-bind="catalogCurrencyInputProps"
             />
           </UFormField>
-          <UFormField label="Multiplicador de precios" name="price_multiplier">
+          <UFormField label="Multiplicador de precios" name="price_multiplier" required>
             <UInputNumber
               v-model="priceMultiplierModel"
               v-bind="catalogNumberInputProps"
@@ -434,26 +435,26 @@ async function requestSubmit() {
           >
             Crédito
           </h3>
-          <UFormField label="Límite de crédito">
+          <UFormField label="Límite de crédito" required>
             <UInputNumber
               v-model="creditLimitModel"
               v-bind="catalogCurrencyInputProps"
             />
           </UFormField>
           <div class="grid grid-cols-1 gap-2">
-            <UFormField label="Días de crédito">
+            <UFormField label="Días de crédito" required>
               <UInputNumber
                 v-model="creditDaysModel"
                 v-bind="catalogIntegerInputProps"
               />
             </UFormField>
-            <UFormField label="Prórroga (días)">
+            <UFormField label="Prórroga (días)" required>
               <UInputNumber
                 v-model="creditExtensionModel"
                 v-bind="catalogIntegerInputProps"
               />
             </UFormField>
-            <UFormField label="Tolerancia remisión (días)">
+            <UFormField label="Tolerancia remisión (días)" required>
               <UInputNumber
                 v-model="creditRemisionToleranceModel"
                 v-bind="catalogIntegerInputProps"

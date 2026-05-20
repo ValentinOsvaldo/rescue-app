@@ -90,7 +90,7 @@ const { mutate, asyncStatus } = useMutation({
   mutation: ({ body, id }: { body: ServiceCreateBody; id: number | null }) =>
     id != null
       ? $fetch(`/api/catalogue/service/update/${id}/`, {
-          method: 'PATCH',
+          method: 'PUT',
           body,
         })
       : $fetch('/api/catalogue/service/create/', { method: 'POST', body }),
@@ -154,7 +154,7 @@ async function requestSubmit() {
         @submit="onSubmit"
         @error="onFormError"
       >
-        <UFormField label="Nombre" name="name">
+        <UFormField label="Nombre" name="name" required>
           <UInput
             :model-value="state.name"
             class="w-full uppercase"
@@ -162,14 +162,14 @@ async function requestSubmit() {
             @update:model-value="(value) => (state.name = formatCatalogNameInput(value))"
           />
         </UFormField>
-        <UFormField label="Categoría" name="category">
+        <UFormField label="Categoría" name="category" required>
           <CatalogDropdownSelect
             v-model="state.category"
             placeholder="Buscar categoría"
             :fetcher="fetchCategoryDropdown"
           />
         </UFormField>
-        <UFormField label="Unidad" name="unit">
+        <UFormField label="Unidad" name="unit" required>
           <USelectMenu
             v-model="state.unit"
             :items="[...SERVICE_UNIT_OPTIONS]"

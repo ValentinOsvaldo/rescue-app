@@ -6,14 +6,14 @@ const state = defineModel<RescueRequestFormState>({ required: true });
 
 <template>
   <div class="space-y-4">
-    <UFormField label="Ubicación de la unidad" name="location_latitude">
+    <UFormField label="Ubicación de la unidad" name="location_latitude" required>
       <SharedMapPinPicker
         v-model:latitude="state.location_latitude"
         v-model:longitude="state.location_longitude"
       />
     </UFormField>
 
-    <UFormField label="Descripción del lugar" name="location_description">
+    <UFormField label="Descripción del lugar" name="location_description" required>
       <UInput v-model="state.location_description" class="w-full" />
     </UFormField>
 

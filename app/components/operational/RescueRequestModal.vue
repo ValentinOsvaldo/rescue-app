@@ -3,6 +3,7 @@ import { useMutation } from '@pinia/colada';
 import type { FormSubmitEvent } from '@nuxt/ui';
 import type { Client } from '~/interfaces/catalogs/client';
 import type { RescueCreateResponse } from '~/interfaces/rescue';
+import type { RescueQuoteCreateResponse } from '~/interfaces/rescue/quote';
 import type { CatalogDropdownRow } from '~/interfaces/shared/catalog-dropdown.interface';
 import type { PaginatedResponse } from '~/interfaces/shared/pagination.interface';
 import {
@@ -162,18 +163,51 @@ function fetchManagerDropdown(
 }
 
 const { mutate, asyncStatus } = useMutation({
-  mutation: async (body: ReturnType<typeof rescueFormToCreateBody>) => {
-    const data = await $fetch<RescueCreateResponse>('/api/rescue/', {
+  mutation: async (payload: {
+    form: RescueCreateFormOutput;
+    companySettings: RescueRequestFormState['company_settings'];
+  }) => {
+    const rescueBody = rescueFormToCreateBody(payload.form);
+    const rescue = await $fetch<RescueCreateResponse>('/api/rescue/', {
       method: 'POST',
-      body,
+      body: rescueBody,
     });
+
+    const quoteBody = buildRescueQuoteCreateBody(
+      rescue.id,
+      payload.form.quote_lines,
+      payload.companySettings,
+    );
+
+    if (quoteBody) {
+      try {
+        await $fetch<RescueQuoteCreateResponse>('/api/rescue/quote/create/', {
+          method: 'POST',
+          body: quoteBody,
+        });
+      } catch (quoteError) {
+        console.error(quoteError);
+        toast.add({
+          title: 'Rescate creado; cotización no guardada',
+          description: `Folio: ${rescue.folio}. ${getFetchErrorMessage(quoteError)}`,
+          color: 'error',
+        });
+        open.value = false;
+        return rescue;
+      }
+    }
+
+    const description = quoteBody
+      ? `Folio: ${rescue.folio}. Cotización guardada.`
+      : `Folio: ${rescue.folio}`;
+
     toast.add({
       title: 'Solicitud creada',
-      description: `Folio: ${data.folio}`,
+      description,
       color: 'success',
     });
     open.value = false;
-    return data;
+    return rescue;
   },
   onError: (e) => {
     console.error(e);
@@ -256,7 +290,10 @@ function skipSupplier() {
 }
 
 function onSubmit(payload: FormSubmitEvent<RescueCreateFormOutput>) {
-  mutate(rescueFormToCreateBody(payload.data, state.company_settings));
+  mutate({
+    form: payload.data,
+    companySettings: state.company_settings,
+  });
 }
 
 function onFormError() {

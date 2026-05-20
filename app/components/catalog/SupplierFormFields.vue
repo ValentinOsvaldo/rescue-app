@@ -9,7 +9,7 @@ defineProps<{
 </script>
 
 <template>
-  <UFormField label="Nombre" name="name">
+  <UFormField label="Nombre" name="name" required>
     <UInput
       :model-value="state.name"
       class="w-full uppercase"
@@ -21,7 +21,7 @@ defineProps<{
   <UFormField label="Descripción" name="description">
     <UTextarea v-model="state.description" class="w-full" :rows="4" />
   </UFormField>
-  <UFormField label="Teléfono" name="phone">
+  <UFormField label="Teléfono" name="phone" required>
     <UInput
       :model-value="state.phone"
       class="w-full"
@@ -32,10 +32,10 @@ defineProps<{
       @update:model-value="(value) => (state.phone = formatMexicoPhoneInput(value))"
     />
   </UFormField>
-  <UFormField label="Correo" name="email">
+  <UFormField label="Correo" name="email" required>
     <UInput v-model="state.email" type="email" class="w-full" />
   </UFormField>
-  <UFormField label="Tipo de servicio" name="service_type">
+  <UFormField label="Tipo de servicio" name="service_type" required>
     <USelectMenu
       v-model="state.service_type"
       :items="[...SUPPLIER_SERVICE_TYPE_OPTIONS]"
@@ -50,7 +50,7 @@ defineProps<{
   <UFormField label="Notas" name="notes">
     <UTextarea v-model="state.notes" class="w-full" :rows="3" />
   </UFormField>
-  <UFormField v-if="showMap !== false" label="Ubicación" name="latitude">
+  <UFormField v-if="showMap !== false" label="Ubicación" name="latitude" required>
     <SharedMapPinPicker
       v-model:latitude="state.latitude"
       v-model:longitude="state.longitude"

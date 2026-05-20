@@ -91,7 +91,7 @@ const { mutate, asyncStatus } = useMutation({
   mutation: ({ body, id }: { body: CompanyCreateBody; id: number | null }) =>
     id != null
       ? $fetch(`/api/catalogue/company/update/${id}/`, {
-          method: 'PATCH',
+          method: 'PUT',
           body,
         })
       : $fetch('/api/catalogue/company/create/', { method: 'POST', body }),
@@ -160,17 +160,17 @@ async function requestSubmit() {
         @submit="onSubmit"
         @error="onFormError"
       >
-        <UFormField label="Nombre" name="name">
+        <UFormField label="Nombre" name="name" required>
           <UInput
             :model-value="state.name"
             class="w-full uppercase"
             @update:model-value="(value) => (state.name = formatCatalogNameInput(value))"
           />
         </UFormField>
-        <UFormField label="Razón social" name="business_name">
+        <UFormField label="Razón social" name="business_name" required>
           <UInput v-model="state.business_name" class="w-full" />
         </UFormField>
-        <UFormField label="RFC" name="rfc">
+        <UFormField label="RFC" name="rfc" required>
           <UInput
             :model-value="state.rfc"
             class="w-full uppercase"
@@ -178,7 +178,7 @@ async function requestSubmit() {
             @update:model-value="(value) => (state.rfc = formatCatalogRfcInput(value))"
           />
         </UFormField>
-        <UFormField label="Teléfono" name="phone">
+        <UFormField label="Teléfono" name="phone" required>
           <UInput
             :model-value="state.phone"
             class="w-full"
@@ -189,13 +189,13 @@ async function requestSubmit() {
             @update:model-value="(value) => (state.phone = formatMexicoPhoneInput(value))"
           />
         </UFormField>
-        <UFormField label="Correo" name="email">
+        <UFormField label="Correo" name="email" required>
           <UInput v-model="state.email" type="email" class="w-full" />
         </UFormField>
-        <UFormField label="Dirección" name="address">
+        <UFormField label="Dirección" name="address" required>
           <UInput v-model="state.address" class="w-full" />
         </UFormField>
-        <UFormField label="Tipo de cliente" name="client_type">
+        <UFormField label="Tipo de cliente" name="client_type" required>
           <USelectMenu
             v-model="state.client_type"
             :items="[...CLIENT_TYPE_OPTIONS]"
@@ -204,7 +204,7 @@ async function requestSubmit() {
             variant="subtle"
           />
         </UFormField>
-        <UFormField label="Facturación" name="billing_type">
+        <UFormField label="Facturación" name="billing_type" required>
           <USelectMenu
             v-model="state.billing_type"
             :items="[...BILLING_TYPE_OPTIONS]"
@@ -213,7 +213,7 @@ async function requestSubmit() {
             variant="subtle"
           />
         </UFormField>
-        <UFormField label="Tipo de comisión" name="commission_type">
+        <UFormField label="Tipo de comisión" name="commission_type" required>
           <USelectMenu
             v-model="state.commission_type"
             :items="[...COMMISSION_TYPE_OPTIONS]"
@@ -222,20 +222,20 @@ async function requestSubmit() {
             variant="subtle"
           />
         </UFormField>
-        <UFormField label="Valor comisión" name="commission_value">
+        <UFormField label="Valor comisión" name="commission_value" required>
           <UInputNumber
             :key="state.commission_type"
             v-model="commissionValueModel"
             v-bind="catalogCommissionValueInputProps(state.commission_type)"
           />
         </UFormField>
-        <UFormField label="Comisión fija" name="commission_fixed">
+        <UFormField label="Comisión fija" name="commission_fixed" required>
           <UInputNumber
             v-model="commissionFixedModel"
             v-bind="catalogCurrencyInputProps"
           />
         </UFormField>
-        <UFormField label="Multiplicador de precio" name="price_multiplier">
+        <UFormField label="Multiplicador de precio" name="price_multiplier" required>
           <UInputNumber
             v-model="priceMultiplierModel"
             v-bind="catalogNumberInputProps"
